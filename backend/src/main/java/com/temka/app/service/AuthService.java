@@ -42,10 +42,10 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
+        var auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
-        var user = userRepository.findByEmail(request.email()).orElseThrow();
+        var user = (User) auth.getPrincipal();
         return buildTokenPair(user);
     }
 
