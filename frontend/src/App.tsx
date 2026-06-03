@@ -3,8 +3,10 @@ import { FormEvent, useEffect, useState } from "react";
 type AuthMode = "user-login" | "user-register" | "admin-login";
 
 type Session = {
-  token: string;
+  accessToken: string;
+  refreshToken: string;
   email: string;
+  name: string;
   mode: AuthMode;
   createdAt: string;
 };
@@ -21,6 +23,7 @@ type RequestDebugPayload = {
   mode: AuthMode;
   requestBody: {
     email: string;
+    name?: string;
     passwordLength: number;
   };
   status?: number;
@@ -72,11 +75,27 @@ const featureNotes = [
 
 function toFieldErrorMessage(field: string, message: string) {
   if (message === "must not be blank" || message === "не должно быть пустым") {
-    return field === "email" ? "Enter an email address." : "Enter a password.";
+    if (field === "email") {
+      return "Enter an email address.";
+    }
+
+    if (field === "name") {
+      return "Enter a name.";
+    }
+
+    return "Enter a password.";
   }
 
   if (message === "size must be between 6 and 2147483647") {
     return "Password must be at least 6 characters.";
+  }
+
+  if (field === "name" && message.includes("size must be between 2 and 100")) {
+    return "Name must be between 2 and 100 characters.";
+  }
+
+  if (field === "password" && message.includes("size must be between 6 and 72")) {
+    return "Password must be between 6 and 72 characters.";
   }
 
   return message;
@@ -92,7 +111,7 @@ function parseApiError(status: number, payload: ApiErrorPayload, rawResponseText
   }
 
   if (status === 400) {
-    return "Request validation failed. Check the entered email and password.";
+    return "Request validation failed. Check the entered fields and try again.";
   }
 
   if (status === 401) {
@@ -114,9 +133,17 @@ function parseApiError(status: number, payload: ApiErrorPayload, rawResponseText
   return payload.detail || payload.title || rawResponseText || `Request failed with status ${status}.`;
 }
 
-function validateForm(email: string, password: string) {
+function validateForm(mode: AuthMode, email: string, name: string, password: string) {
   if (!email.trim()) {
     return "Enter an email address.";
+  }
+
+  if (mode === "user-register" && !name.trim()) {
+    return "Enter a name.";
+  }
+
+  if (mode === "user-register" && (name.trim().length < 2 || name.trim().length > 100)) {
+    return "Name must be between 2 and 100 characters.";
   }
 
   if (!password.trim()) {
@@ -125,6 +152,10 @@ function validateForm(email: string, password: string) {
 
   if (password.length < 6) {
     return "Password must be at least 6 characters.";
+  }
+
+  if (password.length > 72) {
+    return "Password must be between 6 and 72 characters.";
   }
 
   return "";
@@ -160,6 +191,7 @@ async function buildErrorFromResponse(
 export default function App() {
   const [mode, setMode] = useState<AuthMode>("user-login");
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState("");
@@ -177,6 +209,7 @@ export default function App() {
       const storedSession = JSON.parse(rawSession) as Session;
       setSession(storedSession);
       setEmail(storedSession.email);
+      setName(storedSession.name);
       setMode(storedSession.mode);
     } catch {
       window.localStorage.removeItem(SESSION_KEY);
@@ -190,13 +223,14 @@ export default function App() {
     setError("");
     setSuccess("");
 
-    const validationError = validateForm(email, password);
+    const validationError = validateForm(mode, email, name, password);
     if (validationError) {
       setError(validationError);
       console.error("ExchangeHub auth form validation failed", {
         endpoint: currentMeta.endpoint,
         mode,
         email,
+        name,
         passwordLength: password.length,
         validationError
       });
@@ -211,6 +245,7 @@ export default function App() {
         mode,
         requestBody: {
           email,
+          name: mode === "user-register" ? name.trim() : undefined,
           passwordLength: password.length
         }
       } satisfies Omit<RequestDebugPayload, "status" | "statusText" | "responseBody" | "rawResponseText">;
@@ -220,20 +255,33 @@ export default function App() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          email,
-          password
-        })
+        body: JSON.stringify(
+          mode === "user-register"
+            ? {
+                email,
+                name: name.trim(),
+                password
+              }
+            : {
+                email,
+                password
+              }
+        )
       });
 
       if (!response.ok) {
         throw await buildErrorFromResponse(response, debugPayload);
       }
 
-      const payload = (await response.json()) as { token: string };
+      const payload = (await response.json()) as {
+        accessToken: string;
+        refreshToken: string;
+      };
       const nextSession: Session = {
-        token: payload.token,
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken,
         email,
+        name: mode === "user-register" ? name.trim() : session?.name || "",
         mode,
         createdAt: new Date().toISOString()
       };
@@ -249,6 +297,7 @@ export default function App() {
         endpoint: currentMeta.endpoint,
         mode,
         email,
+        name: mode === "user-register" ? name.trim() : undefined,
         status: response.status
       });
     } catch (requestError) {
@@ -349,6 +398,21 @@ export default function App() {
               />
             </label>
 
+            {mode === "user-register" ? (
+              <label>
+                <span>Name</span>
+                <input
+                  autoComplete="name"
+                  name="name"
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Riia"
+                  required
+                  type="text"
+                  value={name}
+                />
+              </label>
+            ) : null}
+
             <label>
               <span>Password</span>
               <input
@@ -389,6 +453,12 @@ export default function App() {
                 <span>Identity</span>
                 <strong>{session.email}</strong>
               </div>
+              {session.name ? (
+                <div className="session-row">
+                  <span>Name</span>
+                  <strong>{session.name}</strong>
+                </div>
+              ) : null}
               <div className="session-row">
                 <span>Entry point</span>
                 <strong>{modeMeta[session.mode].title}</strong>
@@ -399,8 +469,13 @@ export default function App() {
               </div>
 
               <div className="token-block">
-                <span>JWT token</span>
-                <textarea readOnly value={session.token} />
+                <span>Access token</span>
+                <textarea readOnly value={session.accessToken} />
+              </div>
+
+              <div className="token-block">
+                <span>Refresh token</span>
+                <textarea readOnly value={session.refreshToken} />
               </div>
 
               <div className="action-row">
