@@ -13,6 +13,20 @@ type ApiErrorPayload = {
   detail?: string;
   title?: string;
   errors?: Record<string, string>;
+  status?: number;
+};
+
+type RequestDebugPayload = {
+  endpoint: string;
+  mode: AuthMode;
+  requestBody: {
+    email: string;
+    passwordLength: number;
+  };
+  status?: number;
+  statusText?: string;
+  responseBody?: unknown;
+  rawResponseText?: string;
 };
 
 const SESSION_KEY = "exchangehub-auth-session";
@@ -56,15 +70,91 @@ const featureNotes = [
   "Token is stored locally so teammates can hit protected APIs right after login."
 ];
 
-function parseApiError(payload: ApiErrorPayload) {
+function toFieldErrorMessage(field: string, message: string) {
+  if (message === "must not be blank" || message === "не должно быть пустым") {
+    return field === "email" ? "Enter an email address." : "Enter a password.";
+  }
+
+  if (message === "size must be between 6 and 2147483647") {
+    return "Password must be at least 6 characters.";
+  }
+
+  return message;
+}
+
+function parseApiError(status: number, payload: ApiErrorPayload, rawResponseText: string) {
   if (payload.errors) {
-    const firstFieldError = Object.values(payload.errors)[0];
-    if (firstFieldError) {
-      return firstFieldError;
+    const firstEntry = Object.entries(payload.errors)[0];
+    if (firstEntry) {
+      const [field, message] = firstEntry;
+      return toFieldErrorMessage(field, message);
     }
   }
 
-  return payload.detail || payload.title || "Request failed";
+  if (status === 400) {
+    return "Request validation failed. Check the entered email and password.";
+  }
+
+  if (status === 401) {
+    return "Invalid email or password.";
+  }
+
+  if (status === 409) {
+    return payload.detail || "This account already exists.";
+  }
+
+  if (status === 502) {
+    return "Backend gateway returned 502. The auth service is probably unavailable or misconfigured.";
+  }
+
+  if (status >= 500) {
+    return `Server error ${status}. Check backend logs and the browser console for details.`;
+  }
+
+  return payload.detail || payload.title || rawResponseText || `Request failed with status ${status}.`;
+}
+
+function validateForm(email: string, password: string) {
+  if (!email.trim()) {
+    return "Enter an email address.";
+  }
+
+  if (!password.trim()) {
+    return "Enter a password.";
+  }
+
+  if (password.length < 6) {
+    return "Password must be at least 6 characters.";
+  }
+
+  return "";
+}
+
+async function buildErrorFromResponse(
+  response: Response,
+  debugPayload: Omit<RequestDebugPayload, "status" | "statusText" | "responseBody" | "rawResponseText">
+) {
+  const rawResponseText = await response.text();
+  let responseBody: unknown = undefined;
+
+  try {
+    responseBody = rawResponseText ? (JSON.parse(rawResponseText) as ApiErrorPayload) : undefined;
+  } catch {
+    responseBody = undefined;
+  }
+
+  const apiPayload = (responseBody ?? {}) as ApiErrorPayload;
+  const message = parseApiError(response.status, apiPayload, rawResponseText);
+
+  console.error("ExchangeHub auth request failed", {
+    ...debugPayload,
+    status: response.status,
+    statusText: response.statusText,
+    responseBody,
+    rawResponseText
+  } satisfies RequestDebugPayload);
+
+  return new Error(message);
 }
 
 export default function App() {
@@ -99,9 +189,32 @@ export default function App() {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    const validationError = validateForm(email, password);
+    if (validationError) {
+      setError(validationError);
+      console.error("ExchangeHub auth form validation failed", {
+        endpoint: currentMeta.endpoint,
+        mode,
+        email,
+        passwordLength: password.length,
+        validationError
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const debugPayload = {
+        endpoint: currentMeta.endpoint,
+        mode,
+        requestBody: {
+          email,
+          passwordLength: password.length
+        }
+      } satisfies Omit<RequestDebugPayload, "status" | "statusText" | "responseBody" | "rawResponseText">;
+
       const response = await fetch(currentMeta.endpoint, {
         method: "POST",
         headers: {
@@ -114,8 +227,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
-        throw new Error(parseApiError(payload));
+        throw await buildErrorFromResponse(response, debugPayload);
       }
 
       const payload = (await response.json()) as { token: string };
@@ -133,10 +245,25 @@ export default function App() {
           ? "User created in the backend and token saved locally."
           : "Login successful. Token saved locally for backend testing."
       );
+      console.info("ExchangeHub auth request succeeded", {
+        endpoint: currentMeta.endpoint,
+        mode,
+        email,
+        status: response.status
+      });
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : "Unexpected error";
       setError(message);
+      if (!(requestError instanceof Error)) {
+        console.error("ExchangeHub auth submit crashed", {
+          endpoint: currentMeta.endpoint,
+          mode,
+          email,
+          passwordLength: password.length,
+          error: requestError
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
