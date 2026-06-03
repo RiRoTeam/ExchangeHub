@@ -1,7 +1,6 @@
-# Для запуска только бэкенда с БД (без фронта).
-# Для полного локального стека используй docker-compose.yml в корне репозитория.
 services:
 
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     environment:
@@ -18,8 +17,9 @@ services:
       timeout: 5s
       retries: 10
 
-  app:
-    build: .
+  # ── Backend (Spring Boot + Flyway миграции) ──────────────────────────────────
+  backend:
+    build: ./backend
     ports:
       - "8080:8080"
     environment:
@@ -32,6 +32,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # ── Frontend (React admin panel) ─────────────────────────────────────────────
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

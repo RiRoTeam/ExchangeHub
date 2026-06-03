@@ -1,17 +1,15 @@
 # ── Build stage ────────────────────────────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-21-alpine AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# Копируем pom.xml отдельно — слой кешируется пока зависимости не меняются
-COPY pom.xml .
-RUN mvn dependency:go-offline -q
+COPY package.json package-lock.json ./
+RUN npm ci
 
-COPY src ./src
-RUN mvn package -DskipTests -q
+COPY . .
+RUN npm run build
 
 # ── Runtime stage ───────────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
