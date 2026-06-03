@@ -7,8 +7,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-exchangehub}
       POSTGRES_USER: ${DB_USER:-exchangehub}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-exchangehub}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
