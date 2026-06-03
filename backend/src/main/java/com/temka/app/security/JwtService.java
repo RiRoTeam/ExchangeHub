@@ -1,5 +1,6 @@
 package com.temka.app.security;
 
+import com.temka.app.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -14,6 +15,8 @@ import java.util.Date;
 @Service
 public class JwtService {
 
+    private static final String CLAIM_ROLE = "role";
+
     private final SecretKey key;
     private final long expirationMs;
 
@@ -25,9 +28,10 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(UserDetails user) {
+    public String generateAccessToken(User user) {
         return Jwts.builder()
                 .subject(user.getUsername())
+                .claim(CLAIM_ROLE, user.getRole().name())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(key)
