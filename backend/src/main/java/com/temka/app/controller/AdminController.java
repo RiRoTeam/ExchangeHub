@@ -1,46 +1,70 @@
 package com.temka.app.controller;
 
+import com.temka.app.dto.ProgramDto;
+import com.temka.app.dto.ProgramRequest;
+import com.temka.app.dto.ReviewSubmissionRequest;
+import com.temka.app.dto.SubmissionDto;
+import com.temka.app.service.ProgramService;
+import com.temka.app.service.SubmissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
+@RequiredArgsConstructor
 @Tag(name = "Admin", description = "Admin-only endpoints (requires ROLE_ADMIN)")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
+    private final ProgramService programService;
+    private final SubmissionService submissionService;
+
+    // ── Submissions ────────────────────────────────────────────────────────────
+
     @GetMapping("/submissions")
-    @Operation(summary = "A-01 — Get submission moderation queue")
-    public ResponseEntity<Map<String, String>> getSubmissions() {
-        return ResponseEntity.ok(Map.of("message", "Submission queue — coming soon"));
+    @Operation(summary = "Get pending submission queue")
+    public List<SubmissionDto> getSubmissions() {
+        return submissionService.getPending();
     }
 
     @PatchMapping("/submissions/{id}")
-    @Operation(summary = "A-01 — Approve or reject a submission")
-    public ResponseEntity<Map<String, String>> reviewSubmission(@PathVariable String id) {
-        return ResponseEntity.ok(Map.of("message", "Review submission " + id + " — coming soon"));
+    @Operation(summary = "Approve or reject a submission")
+    public SubmissionDto reviewSubmission(
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewSubmissionRequest request
+    ) {
+        return submissionService.review(id, request);
     }
 
+    // ── Programs ───────────────────────────────────────────────────────────────
+
     @PostMapping("/programs")
-    @Operation(summary = "A-02 — Create a new program manually")
-    public ResponseEntity<Map<String, String>> createProgram() {
-        return ResponseEntity.ok(Map.of("message", "Create program — coming soon"));
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a new program manually")
+    public ProgramDto createProgram(@Valid @RequestBody ProgramRequest request) {
+        return programService.create(request);
     }
 
     @PutMapping("/programs/{id}")
-    @Operation(summary = "A-02 — Edit an existing program")
-    public ResponseEntity<Map<String, String>> updateProgram(@PathVariable String id) {
-        return ResponseEntity.ok(Map.of("message", "Update program " + id + " — coming soon"));
+    @Operation(summary = "Edit an existing program")
+    public ProgramDto updateProgram(
+            @PathVariable Long id,
+            @Valid @RequestBody ProgramRequest request
+    ) {
+        return programService.update(id, request);
     }
 
-    @GetMapping("/analytics")
-    @Operation(summary = "A-03 — View views, clicks, and interest statistics")
-    public ResponseEntity<Map<String, String>> getAnalytics() {
-        return ResponseEntity.ok(Map.of("message", "Analytics — coming soon"));
+    @DeleteMapping("/programs/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete a program")
+    public void deleteProgram(@PathVariable Long id) {
+        programService.delete(id);
     }
 }
