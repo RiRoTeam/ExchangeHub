@@ -12,9 +12,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -38,9 +40,18 @@ public class AdminController {
     @Operation(summary = "Approve or reject a submission")
     public SubmissionDto reviewSubmission(
             @PathVariable Long id,
-            @Valid @RequestBody ReviewSubmissionRequest request
+            @Valid @RequestBody(required = false) ReviewSubmissionRequest request
     ) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request body is required");
+        }
         return submissionService.review(id, request);
+    }
+
+    @GetMapping("/analytics")
+    @Operation(summary = "View analytics (coming soon)")
+    public ResponseEntity<Map<String, String>> getAnalytics() {
+        return ResponseEntity.ok(Map.of("message", "Analytics — coming soon"));
     }
 
     // ── Programs ───────────────────────────────────────────────────────────────
