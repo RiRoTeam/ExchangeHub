@@ -1,0 +1,608 @@
+openapi: 3.0.3
+info:
+  title: ExchangeHub API
+  description: |
+    Backend API for ExchangeHub — a platform for discovering niche internship
+    and international exchange programs.
+
+    ## Authentication
+    Most write endpoints require a Bearer JWT. Obtain tokens via `/api/auth/login`
+    or `/api/auth/register`, then pass the `accessToken` in the `Authorization` header:
+    ```
+    Authorization: Bearer <accessToken>
+    ```
+    Access tokens expire in **15 minutes**. Use `/api/auth/refresh` with the
+    `refreshToken` to get a new pair.
+
+    ## Roles
+    | Role  | Description                              |
+    |-------|------------------------------------------|
+    | USER  | Default role for all registered accounts |
+    | ADMIN | Full access to admin endpoints           |
+
+    Call `GET /api/auth/me` after login to retrieve the current user's role
+    and conditionally render UI elements on the frontend.
+  version: 1.0.0
+  contact:
+    name: ExchangeHub Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Registration, login, token refresh, and current user info
+  - name: Programs
+    description: Public catalog of exchange and internship programs
+  - name: Submissions
+    description: User-submitted programs awaiting admin review
+  - name: Admin
+    description: Admin-only management endpoints (requires ROLE_ADMIN)
+
+paths:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: alice@example.com
+              name: Alice
+              password: secret123
+      responses:
+        '201':
+          description: Account created; tokens returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive access + refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: alice@example.com
+              password: secret123
+      responses:
+        '200':
+          description: Tokens returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Obtain a new access token using a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user's profile and role
+      description: |
+        Returns the authenticated user's id, email, name and **role**.
+        Use this on the frontend immediately after login to decide which UI
+        elements to render (e.g. admin panel link).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMeResponse'
+              example:
+                id: 1
+                email: alice@example.com
+                name: Alice
+                role: USER
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Programs ──────────────────────────────────────────────────────────────
+
+  /api/programs:
+    get:
+      tags: [Programs]
+      summary: List active programs with optional filters
+      description: Returns all ACTIVE programs. All query params are optional.
+      parameters:
+        - name: type
+          in: query
+          description: Filter by program type
+          schema:
+            $ref: '#/components/schemas/ProgramType'
+        - name: country
+          in: query
+          description: Partial case-insensitive country match
+          schema:
+            type: string
+            example: germany
+        - name: q
+          in: query
+          description: Full-text search in title and description
+          schema:
+            type: string
+            example: research
+      responses:
+        '200':
+          description: List of programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProgramDto'
+
+  /api/programs/{id}:
+    get:
+      tags: [Programs]
+      summary: Get a program by ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Program details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Submissions ───────────────────────────────────────────────────────────
+
+  /api/submissions:
+    post:
+      tags: [Submissions]
+      summary: Submit a new program for review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionRequest'
+      responses:
+        '201':
+          description: Submission created with PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/submissions/my:
+    get:
+      tags: [Submissions]
+      summary: Get current user's submissions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User's submissions ordered by newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmissionDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Admin ─────────────────────────────────────────────────────────────────
+
+  /api/admin/submissions:
+    get:
+      tags: [Admin]
+      summary: Get pending submission queue
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All PENDING submissions ordered by newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmissionDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/submissions/{id}:
+    patch:
+      tags: [Admin]
+      summary: Approve or reject a submission
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewSubmissionRequest'
+            example:
+              status: APPROVED
+              comment: Great submission, adding to catalog.
+      responses:
+        '200':
+          description: Updated submission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/admin/programs:
+    post:
+      tags: [Admin]
+      summary: Create a new program manually
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramRequest'
+      responses:
+        '201':
+          description: Created program
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDto'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/programs/{id}:
+    put:
+      tags: [Admin]
+      summary: Edit an existing program
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramRequest'
+      responses:
+        '200':
+          description: Updated program
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Admin]
+      summary: Delete a program
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+# ── Components ───────────────────────────────────────────────────────────────
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    ValidationError:
+      description: Request body failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Forbidden:
+      description: Insufficient role (ADMIN required)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Conflict:
+      description: Business rule conflict (e.g. email already in use)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+
+  schemas:
+
+    # ── Enums ────────────────────────────────────────────────────────────────
+
+    ProgramType:
+      type: string
+      enum: [INTERNSHIP, EXCHANGE, SCHOLARSHIP, OTHER]
+
+    ProgramStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, DRAFT]
+
+    SubmissionStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    Role:
+      type: string
+      enum: [USER, ADMIN]
+
+    # ── Auth ─────────────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [email, name, password]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 6
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT, valid for 15 minutes
+        refreshToken:
+          type: string
+          description: Opaque token, valid for 30 days
+
+    UserMeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+
+    # ── Programs ─────────────────────────────────────────────────────────────
+
+    ProgramRequest:
+      type: object
+      required: [title, description, country, type]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        country:
+          type: string
+        type:
+          $ref: '#/components/schemas/ProgramType'
+        deadline:
+          type: string
+          format: date
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+
+    ProgramDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        country:
+          type: string
+        type:
+          $ref: '#/components/schemas/ProgramType'
+        deadline:
+          type: string
+          format: date
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ProgramStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Submissions ───────────────────────────────────────────────────────────
+
+    SubmissionRequest:
+      type: object
+      required: [title, description, country, type]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        country:
+          type: string
+        type:
+          $ref: '#/components/schemas/ProgramType'
+        deadline:
+          type: string
+          format: date
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+
+    SubmissionDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        country:
+          type: string
+        type:
+          $ref: '#/components/schemas/ProgramType'
+        deadline:
+          type: string
+          format: date
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/SubmissionStatus'
+        adminComment:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReviewSubmissionRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/SubmissionStatus'
+        comment:
+          type: string
+          nullable: true
+
+    # ── Error ─────────────────────────────────────────────────────────────────
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string

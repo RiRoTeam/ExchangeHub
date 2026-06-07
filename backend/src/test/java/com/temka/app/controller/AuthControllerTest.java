@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -160,12 +161,10 @@ class AuthControllerTest extends AbstractIntegrationTest {
     void refresh_revokedToken_returns401() throws Exception {
         String oldRefreshToken = registerAndGetRefreshToken("revoke@test.com");
 
-        // использовать токен один раз — он будет отозван
         mvc.perform(post("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"refreshToken\":\"" + oldRefreshToken + "\"}"));
 
-        // старый токен теперь revoked
         mvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + oldRefreshToken + "\"}"))
@@ -190,6 +189,27 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // ── Me ────────────────────────────────────────────────────────────────────
+
+    @Test
+    void me_withValidToken_returnsUserInfo() throws Exception {
+        String accessToken = registerAndGetAccessToken("me@test.com", "Me User");
+
+        mvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("me@test.com"))
+                .andExpect(jsonPath("$.name").value("Me User"))
+                .andExpect(jsonPath("$.role").value("USER"))
+                .andExpect(jsonPath("$.id").isNumber());
+    }
+
+    @Test
+    void me_withoutToken_returns401() throws Exception {
+        mvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void registerUser(String email, String name, String password) throws Exception {
@@ -212,5 +232,19 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 result.getResponse().getContentAsString(),
                 AuthResponse.class
         ).refreshToken();
+    }
+
+    private String registerAndGetAccessToken(String email, String name) throws Exception {
+        var result = mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format(
+                                "{\"email\":\"%s\",\"name\":\"%s\",\"password\":\"secret123\"}",
+                                email, name)))
+                .andReturn();
+
+        return mapper.readValue(
+                result.getResponse().getContentAsString(),
+                AuthResponse.class
+        ).accessToken();
     }
 }

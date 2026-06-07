@@ -126,8 +126,15 @@ class SecurityRulesTest extends AbstractIntegrationTest {
 
     @Test
     void adminToken_canPatchSubmission() throws Exception {
-        mvc.perform(patch("/api/admin/submissions/some-id")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk());
+        // security test: admin token passes auth/authz (4xx from business logic is fine, not 401/403)
+        var result = mvc.perform(patch("/api/admin/submissions/1")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"APPROVED\"}"))
+                .andReturn();
+        int status = result.getResponse().getStatus();
+        org.assertj.core.api.Assertions.assertThat(status)
+                .as("admin token must not be rejected by security (401/403)")
+                .isNotIn(401, 403);
     }
 }

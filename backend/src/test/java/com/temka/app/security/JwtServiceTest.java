@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JwtServiceTest {
 
     private JwtService jwtService;
-
     private User user;
 
     @BeforeEach
@@ -58,7 +57,7 @@ class JwtServiceTest {
     void generateAccessToken_expiredToken_isNotValid() {
         JwtService shortLived = new JwtService(
                 "test-secret-key-must-be-at-least-32-chars-long",
-                -1L // уже истёк в момент создания
+                -1L
         );
         String token = shortLived.generateAccessToken(user);
         assertThat(shortLived.isValid(token, user)).isFalse();
@@ -74,7 +73,6 @@ class JwtServiceTest {
                 .build();
 
         String token = jwtService.generateAccessToken(admin);
-        // токен валиден и subject совпадает
         assertThat(jwtService.isValid(token, admin)).isTrue();
         assertThat(jwtService.extractUsername(token)).isEqualTo("admin@test.com");
     }
