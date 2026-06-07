@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: test-secret-key-must-be-at-least-32-chars-long
+    expiration-ms: 900000
+    refresh-expiration-ms: 2592000000

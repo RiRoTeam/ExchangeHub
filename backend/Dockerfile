@@ -4,6 +4,8 @@ WORKDIR /app
 
 # Копируем pom.xml отдельно, чтобы Docker мог кешировать слой зависимостей
 COPY pom.xml .
+RUN mvn dependency:go-offline -q
+
 COPY src ./src
 
 # Прямая сборка надёжнее, чем dependency:go-offline, который часто падает
