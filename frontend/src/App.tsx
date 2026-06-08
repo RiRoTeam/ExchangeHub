@@ -324,7 +324,7 @@ export default function App() {
     }
 
     try {
-      await navigator.clipboard.writeText(session.token);
+      await navigator.clipboard.writeText(session.accessToken);
       setSuccess("JWT copied to clipboard.");
       setError("");
     } catch {
