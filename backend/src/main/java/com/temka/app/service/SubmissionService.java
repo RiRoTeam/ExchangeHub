@@ -3,9 +3,11 @@ package com.temka.app.service;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionDto;
 import com.temka.app.dto.SubmissionRequest;
+import com.temka.app.entity.Program;
 import com.temka.app.entity.Submission;
 import com.temka.app.entity.SubmissionStatus;
 import com.temka.app.entity.User;
+import com.temka.app.repository.ProgramRepository;
 import com.temka.app.repository.SubmissionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import java.util.List;
 public class SubmissionService {
 
     private final SubmissionRepository submissionRepository;
+    private final ProgramRepository programRepository;
 
     @Transactional
     public SubmissionDto submit(SubmissionRequest request, User user) {
@@ -62,7 +65,20 @@ public class SubmissionService {
         submission.setStatus(request.status());
         submission.setAdminComment(request.comment());
         submission.setReviewedAt(Instant.now());
-        return toDto(submissionRepository.save(submission));
+        submissionRepository.save(submission);
+
+        if (request.status() == SubmissionStatus.APPROVED) {
+            programRepository.save(Program.builder()
+                    .title(submission.getTitle())
+                    .description(submission.getDescription())
+                    .country(submission.getCountry())
+                    .type(submission.getType())
+                    .deadline(submission.getDeadline())
+                    .url(submission.getUrl())
+                    .build());
+        }
+
+        return toDto(submission);
     }
 
     private Submission findOrThrow(Long id) {

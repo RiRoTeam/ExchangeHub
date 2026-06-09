@@ -3,6 +3,7 @@ package com.temka.app.service;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionRequest;
 import com.temka.app.entity.*;
+import com.temka.app.repository.ProgramRepository;
 import com.temka.app.repository.SubmissionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,9 @@ class SubmissionServiceTest {
 
     @Mock
     SubmissionRepository submissionRepository;
+
+    @Mock
+    ProgramRepository programRepository;
 
     @InjectMocks
     SubmissionService submissionService;
@@ -88,6 +92,30 @@ class SubmissionServiceTest {
 
         assertThat(dto.status()).isEqualTo(SubmissionStatus.APPROVED);
         assertThat(dto.adminComment()).isEqualTo("Good one");
+    }
+
+    @Test
+    void review_approved_createsProgram() {
+        var user = user();
+        var submission = pendingSubmission(user);
+        when(submissionRepository.findById(1L)).thenReturn(Optional.of(submission));
+        when(submissionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        submissionService.review(1L, new ReviewSubmissionRequest(SubmissionStatus.APPROVED, "OK"));
+
+        verify(programRepository, times(1)).save(any(Program.class));
+    }
+
+    @Test
+    void review_rejected_doesNotCreateProgram() {
+        var user = user();
+        var submission = pendingSubmission(user);
+        when(submissionRepository.findById(1L)).thenReturn(Optional.of(submission));
+        when(submissionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        submissionService.review(1L, new ReviewSubmissionRequest(SubmissionStatus.REJECTED, "Not suitable"));
+
+        verify(programRepository, never()).save(any(Program.class));
     }
 
     @Test

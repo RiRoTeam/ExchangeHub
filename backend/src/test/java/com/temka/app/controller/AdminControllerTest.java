@@ -26,6 +26,8 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -75,7 +77,7 @@ class AdminControllerTest {
     }
 
     @Test
-    void reviewSubmission_returns200() throws Exception {
+    void reviewSubmission_approve_returns200() throws Exception {
         var request = new ReviewSubmissionRequest(SubmissionStatus.APPROVED, "LGTM");
         when(submissionService.review(eq(1L), any())).thenReturn(submissionDto(SubmissionStatus.APPROVED));
 
@@ -84,6 +86,20 @@ class AdminControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    void reviewSubmission_reject_returns200() throws Exception {
+        var request = new ReviewSubmissionRequest(SubmissionStatus.REJECTED, "Not suitable");
+        when(submissionService.review(eq(1L), any())).thenReturn(submissionDto(SubmissionStatus.REJECTED));
+
+        mockMvc.perform(patch("/api/admin/submissions/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+
+        verify(programService, never()).create(any());
     }
 
     @Test
