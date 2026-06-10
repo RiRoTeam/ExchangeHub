@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -129,5 +130,63 @@ class AdminControllerTest {
     void deleteProgram_returns204() throws Exception {
         mockMvc.perform(delete("/api/admin/programs/1"))
                 .andExpect(status().isNoContent());
+    }
+
+    // ── ProgramRequest validation ─────────────────────────────────────────────
+
+    @Test
+    void createProgram_invalidUrl_returns400() throws Exception {
+        String body = """
+                {"title":"Prog","description":"Desc","country":"UK","type":"EXCHANGE","url":"not-a-url"}
+                """;
+        mockMvc.perform(post("/api/admin/programs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.url").exists());
+    }
+
+    @Test
+    void createProgram_pastDeadline_returns400() throws Exception {
+        String body = String.format(
+                """
+                {"title":"Prog","description":"Desc","country":"UK","type":"EXCHANGE","deadline":"%s"}
+                """,
+                LocalDate.now().minusDays(1));
+        mockMvc.perform(post("/api/admin/programs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.deadline").exists());
+    }
+
+    @Test
+    void createProgram_titleTooLong_returns400() throws Exception {
+        String longTitle = "A".repeat(256);
+        String body = String.format(
+                """
+                {"title":"%s","description":"Desc","country":"UK","type":"EXCHANGE"}
+                """,
+                longTitle);
+        mockMvc.perform(post("/api/admin/programs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.title").exists());
+    }
+
+    @Test
+    void createProgram_descriptionTooLong_returns400() throws Exception {
+        String longDesc = "D".repeat(5001);
+        String body = String.format(
+                """
+                {"title":"Prog","description":"%s","country":"UK","type":"EXCHANGE"}
+                """,
+                longDesc);
+        mockMvc.perform(post("/api/admin/programs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.description").exists());
     }
 }
