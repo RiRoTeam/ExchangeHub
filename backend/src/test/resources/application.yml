@@ -11,3 +11,9 @@ app:
     secret: test-secret-key-must-be-at-least-32-chars-long
     expiration-ms: 900000
     refresh-expiration-ms: 2592000000
+
+rate-limit:
+  login:
+    capacity: 1000
+  register:
+    capacity: 1000
