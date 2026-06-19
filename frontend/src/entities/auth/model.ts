@@ -3,5 +3,6 @@ export type {
   AuthResponse,
   LoginRequest,
   RegisterRequest,
-  Session
+  Session,
+  SignInPayload
 } from "../../shared/types/auth";

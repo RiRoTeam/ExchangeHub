@@ -5,6 +5,7 @@ export type AppRouteKey =
   | "programs"
   | "favorites"
   | "suggestProgram"
+  | "profile"
   | "adminPrograms"
   | "adminReview"
   | "adminAddProgram"
@@ -48,6 +49,13 @@ export const appRoutes: AppRouteDefinition[] = [
     navigationLabel: "suggest program"
   },
   {
+    key: "profile",
+    path: "/profile",
+    title: "Profile",
+    scope: "user",
+    navigationLabel: "profile"
+  },
+  {
     key: "adminPrograms",
     path: "/admin/programs",
     title: "All programs",
@@ -80,3 +88,11 @@ export const appRoutes: AppRouteDefinition[] = [
 export const publicRoutes = appRoutes.filter((route) => route.scope === "public");
 export const userRoutes = appRoutes.filter((route) => route.scope === "user");
 export const adminRoutes = appRoutes.filter((route) => route.scope === "admin");
+
+export function findRouteByPath(pathname: string) {
+  return appRoutes.find((route) => route.path === pathname) ?? null;
+}
+
+export function getDefaultPathForRole(role: "USER" | "ADMIN") {
+  return role === "ADMIN" ? "/admin/programs" : "/programs";
+}

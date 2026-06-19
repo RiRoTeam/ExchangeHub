@@ -8,7 +8,7 @@ export function AdminManageAdminsPage() {
       description="User role management will live here once the backend exposes the required endpoints."
       navigation={<AdminTabs currentRoute="adminManageAdmins" />}
     >
-      <p>Admin access controls are not connected yet.</p>
+      <div className="placeholder-card">Admin access controls are not connected yet.</div>
     </AppShell>
   );
 }

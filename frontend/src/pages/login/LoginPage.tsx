@@ -1,149 +1,50 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useState } from "react";
+import { useAuth } from "../../app/providers/AuthProvider";
+import { useRouter } from "../../app/router/RouterProvider";
+import { getDefaultPathForRole } from "../../app/router/routes";
+import { LoginForm } from "../../features/auth/login-form/LoginForm";
+import { RegisterForm } from "../../features/auth/register-form/RegisterForm";
+import type { AuthMode } from "../../shared/types/auth";
 
-type AuthMode = "user-login" | "user-register" | "admin-login";
-
-type Session = {
-  accessToken: string;
-  refreshToken: string;
-  email: string;
-  name: string;
-  mode: AuthMode;
-  createdAt: string;
+type AuthCopy = {
+  title: string;
+  subtitle: string;
+  submitLabel: string;
 };
 
-type ApiErrorPayload = {
-  detail?: string;
-  title?: string;
-  errors?: Record<string, string>;
-  status?: number;
-};
-
-type RequestDebugPayload = {
-  endpoint: string;
-  mode: AuthMode;
-  requestBody: {
-    email: string;
-    name?: string;
-    passwordLength: number;
-  };
-  status?: number;
-  statusText?: string;
-  responseBody?: unknown;
-  rawResponseText?: string;
-};
-
-const SESSION_KEY = "exchangehub-auth-session";
-
-const modeMeta: Record<
-  AuthMode,
-  {
-    title: string;
-    subtitle: string;
-    action: string;
-    endpoint: "/api/auth/login" | "/api/auth/register";
-    accent: string;
-  }
-> = {
-  "user-login": {
-    title: "User login",
-    subtitle: "Sign in as a regular platform user and grab a fresh JWT for API checks.",
-    action: "Login as user",
-    endpoint: "/api/auth/login",
-    accent: "field-user"
-  },
+const authCopy: Record<AuthMode, AuthCopy> = {
   "user-register": {
-    title: "User registration",
-    subtitle: "Create a new user in the backend database and receive a token instantly.",
-    action: "Create user",
-    endpoint: "/api/auth/register",
-    accent: "field-register"
+    title: "Create your account",
+    subtitle: "Start saving programs, browsing opportunities, and suggesting new ones.",
+    submitLabel: "Create account"
+  },
+  "user-login": {
+    title: "Welcome back",
+    subtitle: "Sign in to continue exploring programs and managing your saved picks.",
+    submitLabel: "Log in"
   },
   "admin-login": {
-    title: "Admin login",
-    subtitle: "Use an existing admin account from the database and verify privileged access flows.",
-    action: "Login as admin",
-    endpoint: "/api/auth/login",
-    accent: "field-admin"
+    title: "Admin access",
+    subtitle: "Use your approved admin account to review submissions and publish programs.",
+    submitLabel: "Continue as admin"
   }
 };
 
-const featureNotes = [
-  "Separate user and admin entry points for backend smoke testing.",
-  "Registration stays on the web for now, mobile can plug into the same endpoints later.",
-  "Token is stored locally so teammates can hit protected APIs right after login."
-];
-
-function toFieldErrorMessage(field: string, message: string) {
-  if (message === "must not be blank" || message === "не должно быть пустым") {
-    if (field === "email") {
-      return "Enter an email address.";
-    }
-
-    if (field === "name") {
-      return "Enter a name.";
-    }
-
-    return "Enter a password.";
-  }
-
-  if (message === "size must be between 6 and 2147483647") {
-    return "Password must be at least 6 characters.";
-  }
-
-  if (field === "name" && message.includes("size must be between 2 and 100")) {
-    return "Name must be between 2 and 100 characters.";
-  }
-
-  if (field === "password" && message.includes("size must be between 6 and 72")) {
-    return "Password must be between 6 and 72 characters.";
-  }
-
-  return message;
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-function parseApiError(status: number, payload: ApiErrorPayload, rawResponseText: string) {
-  if (payload.errors) {
-    const firstEntry = Object.entries(payload.errors)[0];
-    if (firstEntry) {
-      const [field, message] = firstEntry;
-      return toFieldErrorMessage(field, message);
-    }
-  }
-
-  if (status === 400) {
-    return "Request validation failed. Check the entered fields and try again.";
-  }
-
-  if (status === 401) {
-    return "Invalid email or password.";
-  }
-
-  if (status === 409) {
-    return payload.detail || "This account already exists.";
-  }
-
-  if (status === 429) {
-    return "Too many requests. Please wait a moment and try again.";
-  }
-
-  if (status === 502) {
-    return "Backend gateway returned 502. The auth service is probably unavailable or misconfigured.";
-  }
-
-  if (status >= 500) {
-    return `Server error ${status}. Check backend logs and the browser console for details.`;
-  }
-
-  return payload.detail || payload.title || rawResponseText || `Request failed with status ${status}.`;
-}
-
-function validateForm(mode: AuthMode, email: string, name: string, password: string) {
+function validateAuthForm(mode: AuthMode, email: string, name: string, password: string) {
   if (!email.trim()) {
-    return "Enter an email address.";
+    return "Enter your email address.";
+  }
+
+  if (!isValidEmail(email)) {
+    return "Enter a valid email address.";
   }
 
   if (mode === "user-register" && !name.trim()) {
-    return "Enter a name.";
+    return "Enter your name.";
   }
 
   if (mode === "user-register" && (name.trim().length < 2 || name.trim().length > 100)) {
@@ -151,7 +52,7 @@ function validateForm(mode: AuthMode, email: string, name: string, password: str
   }
 
   if (!password.trim()) {
-    return "Enter a password.";
+    return "Enter your password.";
   }
 
   if (password.length < 6) {
@@ -165,350 +66,141 @@ function validateForm(mode: AuthMode, email: string, name: string, password: str
   return "";
 }
 
-async function buildErrorFromResponse(
-  response: Response,
-  debugPayload: Omit<RequestDebugPayload, "status" | "statusText" | "responseBody" | "rawResponseText">
-) {
-  const rawResponseText = await response.text();
-  let responseBody: unknown = undefined;
-
-  try {
-    responseBody = rawResponseText ? (JSON.parse(rawResponseText) as ApiErrorPayload) : undefined;
-  } catch {
-    responseBody = undefined;
-  }
-
-  const apiPayload = (responseBody ?? {}) as ApiErrorPayload;
-  const message = parseApiError(response.status, apiPayload, rawResponseText);
-
-  console.error("ExchangeHub auth request failed", {
-    ...debugPayload,
-    status: response.status,
-    statusText: response.statusText,
-    responseBody,
-    rawResponseText
-  } satisfies RequestDebugPayload);
-
-  return new Error(message);
-}
-
 export function LoginPage() {
+  const { signIn } = useAuth();
+  const { navigate } = useRouter();
   const [mode, setMode] = useState<AuthMode>("user-login");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const rawSession = window.localStorage.getItem(SESSION_KEY);
+  const currentCopy = authCopy[mode];
 
-    if (!rawSession) {
-      return;
-    }
+  async function handleSubmit() {
+    const validationError = validateAuthForm(mode, email, name, password);
 
-    try {
-      const storedSession = JSON.parse(rawSession) as Session;
-      setSession(storedSession);
-      setEmail(storedSession.email);
-      setName(storedSession.name);
-      setMode(storedSession.mode);
-    } catch {
-      window.localStorage.removeItem(SESSION_KEY);
-    }
-  }, []);
-
-  const currentMeta = modeMeta[mode];
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setSuccess("");
-
-    const validationError = validateForm(mode, email, name, password);
     if (validationError) {
       setError(validationError);
-      console.error("ExchangeHub auth form validation failed", {
-        endpoint: currentMeta.endpoint,
-        mode,
-        email,
-        name,
-        passwordLength: password.length,
-        validationError
-      });
       return;
     }
 
+    setError("");
     setIsSubmitting(true);
 
     try {
-      const debugPayload = {
-        endpoint: currentMeta.endpoint,
+      const nextSession = await signIn({
         mode,
-        requestBody: {
-          email,
-          name: mode === "user-register" ? name.trim() : undefined,
-          passwordLength: password.length
-        }
-      } satisfies Omit<RequestDebugPayload, "status" | "statusText" | "responseBody" | "rawResponseText">;
-
-      const response = await fetch(currentMeta.endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(
-          mode === "user-register"
-            ? {
-                email,
-                name: name.trim(),
-                password
-              }
-            : {
-                email,
-                password
-              }
-        )
+        email,
+        name: mode === "user-register" ? name : undefined,
+        password
       });
 
-      if (!response.ok) {
-        throw await buildErrorFromResponse(response, debugPayload);
-      }
-
-      const payload = (await response.json()) as {
-        accessToken: string;
-        refreshToken: string;
-      };
-      const nextSession: Session = {
-        accessToken: payload.accessToken,
-        refreshToken: payload.refreshToken,
-        email,
-        name: mode === "user-register" ? name.trim() : session?.name || "",
-        mode,
-        createdAt: new Date().toISOString()
-      };
-
-      window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
-      setSession(nextSession);
-      setSuccess(
-        mode === "user-register"
-          ? "User created in the backend and token saved locally."
-          : "Login successful. Token saved locally for backend testing."
+      navigate(getDefaultPathForRole(nextSession.user.role), {
+        replace: true
+      });
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Something went wrong. Please try again."
       );
-      console.info("ExchangeHub auth request succeeded", {
-        endpoint: currentMeta.endpoint,
-        mode,
-        email,
-        name: mode === "user-register" ? name.trim() : undefined,
-        status: response.status
-      });
-    } catch (requestError) {
-      const message =
-        requestError instanceof Error ? requestError.message : "Unexpected error";
-      setError(message);
-      if (!(requestError instanceof Error)) {
-        console.error("ExchangeHub auth submit crashed", {
-          endpoint: currentMeta.endpoint,
-          mode,
-          email,
-          passwordLength: password.length,
-          error: requestError
-        });
-      }
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function copyToken() {
-    if (!session) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(session.accessToken);
-      setSuccess("JWT copied to clipboard.");
-      setError("");
-    } catch {
-      setError("Could not copy token to clipboard.");
-    }
-  }
-
-  function logout() {
-    window.localStorage.removeItem(SESSION_KEY);
-    setSession(null);
-    setSuccess("Local session cleared.");
+  function switchMode(nextMode: AuthMode) {
+    setMode(nextMode);
     setError("");
   }
 
   return (
-    <main className="shell">
-      <section className="hero-card">
-        <p className="eyebrow">ExchangeHub / Web Auth Console</p>
-        <h1>Frontend auth surface for backend database testing</h1>
-        <p className="lead">
-          A compact web client for registering users, logging in as user or admin,
-          and handing backend teammates a ready-to-use JWT without touching mobile yet.
-        </p>
-
-        <div className="notes">
-          {featureNotes.map((note) => (
-            <div className="note-pill" key={note}>
-              {note}
-            </div>
-          ))}
+    <main className="auth-page">
+      <section className="auth-layout">
+        <div className="auth-hero">
+          <p className="auth-hero__eyebrow">Get started</p>
+          <h1 className="auth-hero__title">
+            get started with <span>ExchangeHub</span>
+          </h1>
+          <p className="auth-hero__description">
+            A calm, reliable place to browse exchange programs, save the ones you care
+            about, and contribute new opportunities for review.
+          </p>
         </div>
-      </section>
 
-      <section className="workspace">
-        <div className="panel form-panel">
-          <div className="mode-switcher" role="tablist" aria-label="Authentication modes">
-            {(Object.keys(modeMeta) as AuthMode[]).map((option) => (
+        <section className="auth-card" aria-labelledby="auth-title">
+          <div className="auth-card__header">
+            <div className="auth-tabs" role="tablist" aria-label="Authentication modes">
               <button
-                key={option}
-                className={`mode-chip ${mode === option ? "active" : ""}`}
-                onClick={() => {
-                  setMode(option);
-                  setError("");
-                  setSuccess("");
-                }}
+                className={`auth-tabs__button ${mode === "user-register" ? "auth-tabs__button--active" : ""}`}
+                onClick={() => switchMode("user-register")}
+                role="tab"
                 type="button"
               >
-                {modeMeta[option].title}
+                register
               </button>
-            ))}
-          </div>
+              <button
+                className={`auth-tabs__button ${mode === "user-login" ? "auth-tabs__button--active" : ""}`}
+                onClick={() => switchMode("user-login")}
+                role="tab"
+                type="button"
+              >
+                log in
+              </button>
+            </div>
 
-          <div className={`panel-heading ${currentMeta.accent}`}>
-            <h2>{currentMeta.title}</h2>
-            <p>{currentMeta.subtitle}</p>
-          </div>
-
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <label>
-              <span>Email</span>
-              <input
-                autoComplete="email"
-                name="email"
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="team@example.com"
-                required
-                type="email"
-                value={email}
-              />
-            </label>
-
-            {mode === "user-register" ? (
-              <label>
-                <span>Name</span>
-                <input
-                  autoComplete="name"
-                  name="name"
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Riia"
-                  required
-                  type="text"
-                  value={name}
-                />
-              </label>
-            ) : null}
-
-            <label>
-              <span>Password</span>
-              <input
-                autoComplete={mode === "user-register" ? "new-password" : "current-password"}
-                minLength={6}
-                name="password"
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="At least 6 characters"
-                required
-                type="password"
-                value={password}
-              />
-            </label>
-
-            <button className="submit-button" disabled={isSubmitting} type="submit">
-              {isSubmitting ? "Working..." : currentMeta.action}
+            <button
+              className={`auth-admin-toggle ${mode === "admin-login" ? "auth-admin-toggle--active" : ""}`}
+              onClick={() => switchMode("admin-login")}
+              type="button"
+            >
+              admin access
             </button>
-          </form>
-
-          <div className="status-stack" aria-live="polite">
-            {error ? <div className="status-card error">{error}</div> : null}
-            {success ? <div className="status-card success">{success}</div> : null}
-          </div>
-        </div>
-
-        <div className="panel session-panel">
-          <div className="panel-heading">
-            <h2>Current local session</h2>
-            <p>
-              This part is intentionally practical: it shows what the frontend has
-              on hand right now for backend checks.
-            </p>
           </div>
 
-          {session ? (
-            <div className="session-card">
-              <div className="session-row">
-                <span>Identity</span>
-                <strong>{session.email}</strong>
-              </div>
-              {session.name ? (
-                <div className="session-row">
-                  <span>Name</span>
-                  <strong>{session.name}</strong>
-                </div>
-              ) : null}
-              <div className="session-row">
-                <span>Entry point</span>
-                <strong>{modeMeta[session.mode].title}</strong>
-              </div>
-              <div className="session-row">
-                <span>Saved at</span>
-                <strong>{new Date(session.createdAt).toLocaleString()}</strong>
-              </div>
-
-              <div className="token-block">
-                <span>Access token</span>
-                <textarea readOnly value={session.accessToken} />
-              </div>
-
-              <div className="token-block">
-                <span>Refresh token</span>
-                <textarea readOnly value={session.refreshToken} />
-              </div>
-
-              <div className="action-row">
-                <button className="ghost-button" onClick={copyToken} type="button">
-                  Copy token
-                </button>
-                <button className="ghost-button danger" onClick={logout} type="button">
-                  Clear local session
-                </button>
-              </div>
+          <div className="auth-card__body">
+            <div className="auth-card__copy">
+              <h2 id="auth-title">{currentCopy.title}</h2>
+              <p>{currentCopy.subtitle}</p>
             </div>
-          ) : (
-            <div className="empty-state">
-              <p>No local session yet.</p>
-              <span>
-                Use the form to register a user or log in with an existing account from
-                the backend database.
-              </span>
-            </div>
-          )}
 
-          <div className="helper-card">
-            <h3>Backend expectations</h3>
-            <p>`User registration` calls `/api/auth/register`.</p>
-            <p>`User login` and `Admin login` both call `/api/auth/login`.</p>
-            <p>
-              For admin sign-in, the account needs to exist in the database already,
-              because this frontend does not create admin users on its own.
-            </p>
+            <form
+              className="auth-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmit();
+              }}
+            >
+              {mode === "user-register" ? (
+                <RegisterForm
+                  email={email}
+                  isSubmitting={isSubmitting}
+                  name={name}
+                  onEmailChange={setEmail}
+                  onNameChange={setName}
+                  onPasswordChange={setPassword}
+                  password={password}
+                  submitLabel={currentCopy.submitLabel}
+                />
+              ) : (
+                <LoginForm
+                  email={email}
+                  isSubmitting={isSubmitting}
+                  onEmailChange={setEmail}
+                  onPasswordChange={setPassword}
+                  password={password}
+                  submitLabel={currentCopy.submitLabel}
+                />
+              )}
+            </form>
+
+            <div className="auth-feedback" aria-live="polite">
+              {error ? <p className="auth-feedback__error">{error}</p> : null}
+            </div>
           </div>
-        </div>
+        </section>
       </section>
     </main>
   );

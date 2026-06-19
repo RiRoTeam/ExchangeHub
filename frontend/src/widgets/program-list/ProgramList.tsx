@@ -10,13 +10,13 @@ export function ProgramList({
   emptyMessage = "Programs will appear here once the API is connected."
 }: ProgramListProps) {
   if (!programs.length) {
-    return <p>{emptyMessage}</p>;
+    return <div className="placeholder-card">{emptyMessage}</div>;
   }
 
   return (
-    <section aria-label="Programs">
+    <section aria-label="Programs" className="program-list">
       {programs.map((program) => (
-        <article key={program.id}>
+        <article key={program.id} className="program-list__card">
           <h2>{program.title}</h2>
           <p>{program.description}</p>
           <p>

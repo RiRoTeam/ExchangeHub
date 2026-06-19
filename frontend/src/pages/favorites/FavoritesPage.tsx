@@ -11,7 +11,7 @@ export function FavoritesPage() {
       aside={<FilterSidebar title="Favorites search and filters" />}
       navigation={<MobileBottomNav currentRoute="favorites" />}
     >
-      <ProgramList programs={[]} emptyMessage="Favorite programs are not implemented yet." />
+      <ProgramList programs={[]} emptyMessage="Favorite programs will appear here once favorites are connected." />
     </AppShell>
   );
 }

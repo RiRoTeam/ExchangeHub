@@ -12,10 +12,15 @@ export function FilterSidebar({
   children
 }: FilterSidebarProps) {
   return (
-    <section aria-label={title}>
+    <section aria-label={title} className="filter-sidebar">
       <h2>{title}</h2>
-      <input aria-label="Search programs" placeholder={searchPlaceholder} type="search" />
-      <div>{children}</div>
+      <input
+        aria-label="Search programs"
+        className="text-input"
+        placeholder={searchPlaceholder}
+        type="search"
+      />
+      <div className="filter-sidebar__content">{children}</div>
     </section>
   );
 }

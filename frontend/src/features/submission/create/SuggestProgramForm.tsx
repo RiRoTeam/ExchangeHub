@@ -6,33 +6,33 @@ export function SuggestProgramForm({
   submitLabel = "Send program for review"
 }: SuggestProgramFormProps) {
   return (
-    <form>
+    <form className="placeholder-form">
       <h2>Program form</h2>
-      <label>
+      <label className="auth-form-fields__label">
         <span>Title</span>
-        <input name="title" type="text" />
+        <input className="text-input" name="title" type="text" />
       </label>
-      <label>
+      <label className="auth-form-fields__label">
         <span>Country</span>
-        <input name="country" type="text" />
+        <input className="text-input" name="country" type="text" />
       </label>
-      <label>
+      <label className="auth-form-fields__label">
         <span>Type</span>
-        <input name="type" type="text" />
+        <input className="text-input" name="type" type="text" />
       </label>
-      <label>
+      <label className="auth-form-fields__label">
         <span>Deadline</span>
-        <input name="deadline" type="date" />
+        <input className="text-input" name="deadline" type="date" />
       </label>
-      <label>
+      <label className="auth-form-fields__label">
         <span>Source URL</span>
-        <input name="url" type="url" />
+        <input className="text-input" name="url" type="url" />
       </label>
-      <label>
+      <label className="auth-form-fields__label">
         <span>Description</span>
-        <textarea name="description" />
+        <textarea className="text-input text-input--textarea" name="description" />
       </label>
-      <button type="submit">{submitLabel}</button>
+      <button className="primary-button" type="submit">{submitLabel}</button>
     </form>
   );
 }
