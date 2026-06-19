@@ -29,6 +29,11 @@ button {
   color: inherit;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -103,6 +108,14 @@ button {
 
 .secondary-button--danger {
   color: var(--color-danger);
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
 }
 
 .route-status {
@@ -345,6 +358,8 @@ button {
 
 .filter-sidebar__content {
   margin-top: 16px;
+  display: grid;
+  gap: 16px;
 }
 
 .nav-tabs__list,
@@ -380,6 +395,15 @@ button {
   padding: 24px;
 }
 
+.filter-controls {
+  display: grid;
+  gap: 14px;
+}
+
+.filter-controls h3 {
+  margin: 0;
+}
+
 .placeholder-card h2,
 .placeholder-card h3,
 .placeholder-form h2 {
@@ -409,6 +433,43 @@ button {
 .program-list__card p {
   margin: 0 0 10px;
   line-height: 1.6;
+}
+
+.program-list__meta {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.program-list__meta p {
+  margin: 0;
+}
+
+.program-list__link {
+  margin-top: 8px;
+}
+
+.programs-page__header {
+  margin-bottom: 18px;
+}
+
+.programs-page__header h2 {
+  margin: 0 0 8px;
+}
+
+.programs-page__header p {
+  margin: 0;
+  color: var(--color-text-soft);
+}
+
+.error-banner {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(192, 90, 90, 0.3);
+  border-radius: 18px;
+  background: rgba(192, 90, 90, 0.08);
+  color: var(--color-danger);
+  line-height: 1.5;
 }
 
 .profile-grid {
