@@ -576,3 +576,118 @@ a {
     width: min(100% - 20px, 1240px);
   }
 }
+
+/* ── Формы: ошибки полей и итоговый фидбек ─────────────────────────────────── */
+
+.form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.form-field__hint,
+.form-field__error {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.form-field__hint {
+  color: var(--color-text-soft);
+}
+
+.form-field__error {
+  color: var(--color-danger);
+}
+
+.text-input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.text-input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 4px rgba(192, 90, 90, 0.15);
+}
+
+.text-input:disabled {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-soft);
+  cursor: not-allowed;
+}
+
+.form-feedback:empty {
+  display: none;
+}
+
+.form-feedback__error,
+.form-feedback__success {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  line-height: 1.5;
+}
+
+.form-feedback__error {
+  border: 1px solid rgba(192, 90, 90, 0.3);
+  background: rgba(192, 90, 90, 0.08);
+  color: var(--color-danger);
+}
+
+.form-feedback__success {
+  border: 1px solid rgba(80, 132, 94, 0.3);
+  background: rgba(80, 132, 94, 0.1);
+  color: var(--color-success);
+}
+
+/* ── Список заявок ─────────────────────────────────────────────────────────── */
+
+.page-section {
+  margin-top: 32px;
+}
+
+.submission-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.submission-card__header h3 {
+  margin: 0;
+}
+
+.submission-card__comment {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--color-surface-subtle);
+}
+
+.status-pill {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-pill--pending {
+  background: rgba(143, 106, 159, 0.14);
+  color: var(--color-accent);
+}
+
+.status-pill--approved {
+  background: rgba(80, 132, 94, 0.14);
+  color: var(--color-success);
+}
+
+.status-pill--rejected {
+  background: rgba(192, 90, 90, 0.12);
+  color: var(--color-danger);
+}
+
+.action-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}

@@ -18,11 +18,19 @@ export type Submission = {
   reviewedAt: string | null;
 };
 
-export type SuggestProgramRequest = {
+/**
+ * Тело для POST /api/submissions и POST /api/admin/programs — на бэке это
+ * SubmissionRequest и ProgramRequest, у них одинаковый набор полей.
+ * deadline и url на бэке необязательны (@Future / @URL пропускают null).
+ */
+export type ProgramDraft = {
   title: string;
   description: string;
   country: string;
   type: ProgramType;
-  deadline: string;
-  url: string;
+  deadline: string | null;
+  url: string | null;
 };
+
+/** @deprecated Историческое имя, оставлено ради совместимости импортов. */
+export type SuggestProgramRequest = ProgramDraft;
