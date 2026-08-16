@@ -1,8 +1,10 @@
 import {
   createContext,
   startTransition,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode
 } from "react";
@@ -14,6 +16,11 @@ import {
   writeStoredSession
 } from "../../entities/auth/storage";
 import { ApiError } from "../../shared/api/http";
+import {
+  registerAuthBridge,
+  unregisterAuthBridge,
+  type AuthBridge
+} from "../../shared/api/authBridge";
 import type { Session, SignInPayload } from "../../shared/types/auth";
 
 type AuthStatus = "bootstrapping" | "anonymous" | "authenticated";
@@ -84,6 +91,74 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [status, setStatus] = useState<AuthStatus>("bootstrapping");
   const [session, setSession] = useState<Session | null>(null);
 
+  // Актуальная сессия для http-слоя: он живёт вне React и не может читать state.
+  const sessionRef = useRef<Session | null>(null);
+  // Один общий promise на все параллельные 401 — чтобы не жечь refresh-токен гонкой.
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
+
+  const applySession = useCallback((nextSession: Session) => {
+    sessionRef.current = nextSession;
+    writeStoredSession(nextSession);
+    setSession(nextSession);
+    setStatus("authenticated");
+  }, []);
+
+  const resetSession = useCallback(() => {
+    sessionRef.current = null;
+    clearStoredSession();
+    setSession(null);
+    setStatus("anonymous");
+  }, []);
+
+  // ── Мост для http-слоя ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const bridge: AuthBridge = {
+      getAccessToken: () => sessionRef.current?.accessToken ?? null,
+
+      refreshAccessToken: () => {
+        const currentSession = sessionRef.current;
+
+        if (!currentSession) {
+          return Promise.resolve(null);
+        }
+
+        if (!refreshPromiseRef.current) {
+          refreshPromiseRef.current = (async () => {
+            try {
+              const tokens = await refreshAuthTokens(currentSession.refreshToken);
+
+              applySession({
+                ...currentSession,
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken
+              });
+
+              return tokens.accessToken;
+            } catch {
+              resetSession();
+              return null;
+            } finally {
+              refreshPromiseRef.current = null;
+            }
+          })();
+        }
+
+        return refreshPromiseRef.current;
+      },
+
+      onSessionExpired: () => {
+        resetSession();
+      }
+    };
+
+    registerAuthBridge(bridge);
+
+    return () => {
+      unregisterAuthBridge(bridge);
+    };
+  }, [applySession, resetSession]);
+
+  // ── Восстановление сессии при загрузке ──────────────────────────────────────
   useEffect(() => {
     let isCancelled = false;
 
@@ -92,8 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (!storedSession) {
         if (!isCancelled) {
-          setSession(null);
-          setStatus("anonymous");
+          resetSession();
         }
 
         return;
@@ -101,20 +175,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       try {
         const nextSession = await rehydrateStoredSession(storedSession);
-        writeStoredSession(nextSession);
 
         if (!isCancelled) {
           startTransition(() => {
-            setSession(nextSession);
-            setStatus("authenticated");
+            applySession(nextSession);
           });
         }
       } catch {
-        clearStoredSession();
-
         if (!isCancelled) {
-          setSession(null);
-          setStatus("anonymous");
+          resetSession();
+        } else {
+          clearStoredSession();
         }
       }
     }
@@ -124,7 +195,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [applySession, resetSession]);
 
   async function signIn(payload: SignInPayload) {
     try {
@@ -135,54 +206,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new AdminAccessRequiredError();
       }
 
-      writeStoredSession(nextSession);
       startTransition(() => {
-        setSession(nextSession);
-        setStatus("authenticated");
+        applySession(nextSession);
       });
 
       return nextSession;
     } catch (error) {
-      clearStoredSession();
-      setSession(null);
-      setStatus("anonymous");
+      resetSession();
       throw new Error(toFriendlyAuthError(error, payload.mode));
     }
   }
 
   async function refreshSession() {
-    if (!session) {
+    const currentSession = sessionRef.current ?? session;
+
+    if (!currentSession) {
       return null;
     }
 
     try {
-      const refreshedTokens = await refreshAuthTokens(session.refreshToken);
+      const refreshedTokens = await refreshAuthTokens(currentSession.refreshToken);
       const nextSession = await buildSessionFromTokens(
         {
           accessToken: refreshedTokens.accessToken,
           refreshToken: refreshedTokens.refreshToken
         },
-        session.mode,
-        session.createdAt
+        currentSession.mode,
+        currentSession.createdAt
       );
 
-      writeStoredSession(nextSession);
-      setSession(nextSession);
-      setStatus("authenticated");
+      applySession(nextSession);
 
       return nextSession;
     } catch {
-      clearStoredSession();
-      setSession(null);
-      setStatus("anonymous");
+      resetSession();
       return null;
     }
   }
 
   function signOut() {
-    clearStoredSession();
-    setSession(null);
-    setStatus("anonymous");
+    resetSession();
   }
 
   return (

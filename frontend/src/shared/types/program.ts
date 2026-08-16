@@ -1,5 +1,6 @@
 export type ProgramType = "INTERNSHIP" | "EXCHANGE" | "SCHOLARSHIP" | "OTHER";
-export type ProgramStatus = "ACTIVE" | "ARCHIVED";
+/** Соответствует com.temka.app.entity.ProgramStatus на бэке. */
+export type ProgramStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 
 export type Program = {
   id: number;
