@@ -759,3 +759,59 @@ a {
   background: rgba(80, 132, 94, 0.14);
   color: var(--color-success);
 }
+
+/* ── Плашки новизны и дедлайна ─────────────────────────────────────────────── */
+
+.program-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.program-list__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.program-list__heading h2 {
+  margin: 0;
+}
+
+.status-pill--new {
+  background: rgba(103, 66, 118, 0.12);
+  color: var(--color-accent);
+}
+
+.status-pill--deadline-today,
+.status-pill--deadline-urgent {
+  background: rgba(192, 90, 90, 0.12);
+  color: var(--color-danger);
+}
+
+.status-pill--deadline-soon {
+  background: rgba(122, 162, 127, 0.16);
+  color: var(--color-brand-strong);
+}
+
+.status-pill--deadline-passed {
+  background: var(--color-surface-muted);
+  color: var(--color-text-soft);
+}
+
+.program-list__card--muted {
+  opacity: 0.72;
+}
+
+.program-list__card--muted:hover,
+.program-list__card--muted:focus-within {
+  opacity: 1;
+}
+
+.program-detail__deadline--passed {
+  color: var(--color-text-soft);
+  text-decoration: line-through;
+}

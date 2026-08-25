@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { getProgramById } from "../../entities/program/api";
+import { ProgramBadges } from "../../entities/program/ProgramBadges";
+import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
 import { ApiError } from "../../shared/api/http";
 import { toFriendlyApiError } from "../../shared/api/problem";
 import type { Program } from "../../shared/types/program";
@@ -17,16 +19,6 @@ type LoadState =
   | { kind: "loaded"; program: Program }
   | { kind: "not-found" }
   | { kind: "error"; message: string };
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Not specified";
-  }
-
-  const parsed = new Date(value);
-
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
-}
 
 function formatProgramType(type: Program["type"]) {
   return type.charAt(0) + type.slice(1).toLowerCase();
@@ -144,9 +136,12 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
         <article className="program-detail">
           <header className="program-detail__header">
             <h2>{program.title}</h2>
-            <span className={`status-pill status-pill--${program.status.toLowerCase()}`}>
-              {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
-            </span>
+            <div className="program-badges">
+              <ProgramBadges program={program} />
+              <span className={`status-pill status-pill--${program.status.toLowerCase()}`}>
+                {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
+              </span>
+            </div>
           </header>
 
           <dl className="program-detail__facts">
@@ -160,11 +155,19 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
             </div>
             <div className="profile-list__row">
               <dt>Deadline</dt>
-              <dd>{program.deadline ? formatDate(program.deadline) : "Open or not specified"}</dd>
+              <dd
+                className={
+                  getDeadlineState(program.deadline).kind === "passed"
+                    ? "program-detail__deadline--passed"
+                    : undefined
+                }
+              >
+                {formatProgramDate(program.deadline, "Open or not specified")}
+              </dd>
             </div>
             <div className="profile-list__row">
               <dt>Added</dt>
-              <dd>{formatDate(program.createdAt)}</dd>
+              <dd>{formatProgramDate(program.createdAt)}</dd>
             </div>
           </dl>
 
