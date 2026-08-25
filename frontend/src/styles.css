@@ -755,11 +755,6 @@ a {
   color: var(--color-text-soft);
 }
 
-.status-pill--active {
-  background: rgba(80, 132, 94, 0.14);
-  color: var(--color-success);
-}
-
 /* ── Плашки новизны и дедлайна ─────────────────────────────────────────────── */
 
 .program-badges {

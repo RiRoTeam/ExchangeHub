@@ -138,9 +138,14 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
             <h2>{program.title}</h2>
             <div className="program-badges">
               <ProgramBadges program={program} />
-              <span className={`status-pill status-pill--${program.status.toLowerCase()}`}>
-                {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
-              </span>
+              {/* ACTIVE не показываем: каталог отдаёт только активные программы,
+                  так что плашка была бы на каждой карточке и ничего не значила.
+                  А вот INACTIVE и DRAFT сообщают, что программа снята с публикации. */}
+              {program.status === "ACTIVE" ? null : (
+                <span className={`status-pill status-pill--${program.status.toLowerCase()}`}>
+                  {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
+                </span>
+              )}
             </div>
           </header>
 
