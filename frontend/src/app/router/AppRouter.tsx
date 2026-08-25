@@ -64,7 +64,7 @@ export function AppRouter() {
       redirectPath = getDefaultPathForRole(session.user.role);
     }
 
-    if ((matchedRoute.scope === "user" || matchedRoute.scope === "admin") && status === "anonymous") {
+    if (matchedRoute.scope !== "public" && status === "anonymous") {
       redirectPath = "/login";
     }
 

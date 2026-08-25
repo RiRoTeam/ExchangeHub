@@ -93,6 +93,27 @@ describe("навигационные списки", () => {
     expect(userRoutes.some((route) => route.key === "programs")).toBe(true);
   });
 
+  it("профиль виден обеим ролям", () => {
+    // Без этого админу неоткуда попасть на страницу с кнопкой выхода.
+    expect(userRoutes.some((route) => route.key === "profile")).toBe(true);
+    expect(adminRoutes.some((route) => route.key === "profile")).toBe(true);
+  });
+
+  it("профиль — последняя вкладка в обеих навигациях", () => {
+    expect(userRoutes[userRoutes.length - 1].key).toBe("profile");
+    expect(adminRoutes[adminRoutes.length - 1].key).toBe("profile");
+  });
+
+  it("чужие роли друг к другу не подмешиваются", () => {
+    expect(userRoutes.some((route) => route.scope === "admin")).toBe(false);
+    expect(adminRoutes.some((route) => route.scope === "user")).toBe(false);
+  });
+
+  it("страница логина в навигацию залогиненных не попадает", () => {
+    expect(userRoutes.some((route) => route.key === "login")).toBe(false);
+    expect(adminRoutes.some((route) => route.key === "login")).toBe(false);
+  });
+
   it("ключи маршрутов уникальны", () => {
     const keys = appRoutes.map((route) => route.key);
     expect(new Set(keys).size).toBe(keys.length);

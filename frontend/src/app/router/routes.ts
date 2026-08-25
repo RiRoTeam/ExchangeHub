@@ -1,4 +1,9 @@
-export type RouteScope = "public" | "user" | "admin";
+/**
+ * public        — только для анонимов (страница логина)
+ * user / admin  — только для своей роли
+ * authenticated — для любого залогиненного, роль не важна
+ */
+export type RouteScope = "public" | "user" | "admin" | "authenticated";
 
 export type AppRouteKey =
   | "login"
@@ -69,13 +74,6 @@ export const appRoutes: AppRouteDefinition[] = [
     navigationLabel: "suggest program"
   },
   {
-    key: "profile",
-    path: "/profile",
-    title: "Profile",
-    scope: "user",
-    navigationLabel: "profile"
-  },
-  {
     key: "adminPrograms",
     path: "/admin/programs",
     title: "All programs",
@@ -102,6 +100,13 @@ export const appRoutes: AppRouteDefinition[] = [
     title: "Manage admins",
     scope: "admin",
     navigationLabel: "manage admins"
+  },
+  {
+    key: "profile",
+    path: "/profile",
+    title: "Profile",
+    scope: "authenticated",
+    navigationLabel: "profile"
   }
 ];
 
@@ -209,7 +214,19 @@ export function programDetailPath(id: number | string) {
 }
 
 function navigable(scope: RouteScope) {
-  return appRoutes.filter((route) => route.scope === scope && !route.hiddenInNav);
+  return appRoutes.filter((route) => {
+    if (route.hiddenInNav) {
+      return false;
+    }
+
+    if (route.scope === scope) {
+      return true;
+    }
+
+    // Страницы для любого залогиненного видны в обеих навигациях —
+    // иначе админу неоткуда узнать, что у него есть профиль (и выход).
+    return route.scope === "authenticated" && (scope === "user" || scope === "admin");
+  });
 }
 
 export const publicRoutes = navigable("public");
