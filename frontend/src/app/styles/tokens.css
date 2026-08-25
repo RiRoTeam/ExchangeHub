@@ -1,0 +1,16 @@
+:root {
+  --color-bg-page: #f2e8ef;
+  --color-surface: #ffffff;
+  --color-surface-muted: #e3dfe1;
+  --color-surface-subtle: #f8f4f6;
+  --color-border: #cdbec6;
+  --color-text: #231f20;
+  --color-text-soft: #6b6467;
+  --color-brand: #7aa27f;
+  --color-brand-strong: #5f8264;
+  --color-accent: #674276;
+  --color-accent-soft: #8f6a9f;
+  --color-danger: #c05a5a;
+  --color-success: #50845e;
+  --color-shadow: rgba(103, 66, 118, 0.08);
+}

@@ -2,3 +2,5 @@
 .idea/
 frontend/.vite/
 .claude/
+.env
+.env.local
