@@ -1,3 +1,5 @@
+import { AppLink } from "../../app/router/AppLink";
+import { programDetailPath } from "../../app/router/routes";
 import type { Program } from "../../shared/types/program";
 
 type ProgramListProps = {
@@ -39,7 +41,11 @@ export function ProgramList({
     <section aria-label="Programs" className="program-list">
       {programs.map((program) => (
         <article key={program.id} className="program-list__card">
-          <h2>{program.title}</h2>
+          <h2>
+            <AppLink className="program-list__title" to={programDetailPath(program.id)}>
+              {program.title}
+            </AppLink>
+          </h2>
           <div className="program-list__meta">
             <p>
               <strong>Country:</strong> {program.country}

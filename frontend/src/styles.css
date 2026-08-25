@@ -691,3 +691,71 @@ a {
   gap: 12px;
   margin-top: 14px;
 }
+
+/* ── Детальная карточка программы ──────────────────────────────────────────── */
+
+.program-list__title {
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.program-list__title:hover,
+.program-list__title:focus-visible {
+  color: var(--color-accent);
+  border-bottom-color: currentColor;
+}
+
+.detail-actions {
+  margin-bottom: 18px;
+}
+
+.program-detail {
+  padding: 28px;
+}
+
+.program-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.program-detail__header h2 {
+  margin: 0;
+}
+
+.program-detail__facts {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 24px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--color-surface-subtle);
+}
+
+.program-detail__description h3 {
+  margin: 0 0 10px;
+}
+
+.program-detail__description p {
+  margin: 0;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.program-detail__link {
+  margin-top: 24px;
+}
+
+.status-pill--inactive,
+.status-pill--draft {
+  background: var(--color-surface-muted);
+  color: var(--color-text-soft);
+}
+
+.status-pill--active {
+  background: rgba(80, 132, 94, 0.14);
+  color: var(--color-success);
+}
