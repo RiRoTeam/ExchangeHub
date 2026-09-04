@@ -7,21 +7,32 @@ import { AdminReviewPage } from "../../pages/admin-review/AdminReviewPage";
 import { FavoritesPage } from "../../pages/favorites/FavoritesPage";
 import { LoginPage } from "../../pages/login/LoginPage";
 import { ProfilePage } from "../../pages/profile/ProfilePage";
+import { ProgramDetailPage } from "../../pages/program-detail/ProgramDetailPage";
 import { ProgramsPage } from "../../pages/programs/ProgramsPage";
 import { SuggestProgramPage } from "../../pages/suggest-program/SuggestProgramPage";
-import { findRouteByPath, getDefaultPathForRole, type AppRouteKey } from "./routes";
+import {
+  findRouteByPath,
+  getDefaultPathForRole,
+  type AppRouteKey,
+  type RouteParams
+} from "./routes";
 import { useRouter } from "./RouterProvider";
 
-const routeComponents: Record<AppRouteKey, ReactElement> = {
-  login: <LoginPage />,
-  programs: <ProgramsPage />,
-  favorites: <FavoritesPage />,
-  suggestProgram: <SuggestProgramPage />,
-  profile: <ProfilePage />,
-  adminPrograms: <AdminProgramsPage />,
-  adminReview: <AdminReviewPage />,
-  adminAddProgram: <AdminAddProgramPage />,
-  adminManageAdmins: <AdminManageAdminsPage />
+/**
+ * Страницы получают распарсенные параметры пути.
+ * Это функции, а не готовые элементы: без параметров карточку не построить.
+ */
+const routeComponents: Record<AppRouteKey, (params: RouteParams) => ReactElement> = {
+  login: () => <LoginPage />,
+  programs: () => <ProgramsPage />,
+  programDetail: (params) => <ProgramDetailPage programId={params.id} />,
+  favorites: () => <FavoritesPage />,
+  suggestProgram: () => <SuggestProgramPage />,
+  profile: () => <ProfilePage />,
+  adminPrograms: () => <AdminProgramsPage />,
+  adminReview: () => <AdminReviewPage />,
+  adminAddProgram: () => <AdminAddProgramPage />,
+  adminManageAdmins: () => <AdminManageAdminsPage />
 };
 
 function RouteStatus({ title, message }: { title: string; message: string }) {
@@ -38,7 +49,8 @@ function RouteStatus({ title, message }: { title: string; message: string }) {
 export function AppRouter() {
   const { pathname, navigate } = useRouter();
   const { status, session } = useAuth();
-  const matchedRoute = findRouteByPath(pathname);
+  const match = findRouteByPath(pathname);
+  const matchedRoute = match?.route ?? null;
   const isAuthenticated = status === "authenticated" && !!session;
 
   let redirectPath: string | null = null;
@@ -52,7 +64,7 @@ export function AppRouter() {
       redirectPath = getDefaultPathForRole(session.user.role);
     }
 
-    if ((matchedRoute.scope === "user" || matchedRoute.scope === "admin") && status === "anonymous") {
+    if (matchedRoute.scope !== "public" && status === "anonymous") {
       redirectPath = "/login";
     }
 
@@ -89,7 +101,7 @@ export function AppRouter() {
     );
   }
 
-  if (!matchedRoute) {
+  if (!match) {
     return (
       <RouteStatus
         title="Page not found"
@@ -98,5 +110,5 @@ export function AppRouter() {
     );
   }
 
-  return routeComponents[matchedRoute.key];
+  return routeComponents[match.route.key](match.params);
 }

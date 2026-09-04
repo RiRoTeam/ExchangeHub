@@ -1,6 +1,7 @@
 import { useAuth } from "../../app/providers/AuthProvider";
 import { useRouter } from "../../app/router/RouterProvider";
 import { AppShell } from "../../widgets/app-shell/AppShell";
+import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
 
 function formatDate(value: string) {
@@ -30,7 +31,15 @@ export function ProfilePage() {
     <AppShell
       title="Profile"
       description="Your account details and current signed-in session."
-      navigation={<MobileBottomNav currentRoute="profile" />}
+      navigation={
+        // Профиль открыт обеим ролям, поэтому и навигация своя для каждой:
+        // с пользовательскими вкладками админа увело бы обратно.
+        session.user.role === "ADMIN" ? (
+          <AdminTabs currentRoute="profile" />
+        ) : (
+          <MobileBottomNav currentRoute="profile" />
+        )
+      }
     >
       <section className="profile-grid">
         <div className="profile-card">
