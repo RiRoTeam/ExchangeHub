@@ -22,24 +22,30 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String LOGIN_PATH    = "/api/auth/login";
     private static final String REGISTER_PATH = "/api/auth/register";
+    private static final String ANALYTICS_EVENTS_KEY = "/api/programs/{id}/events";
 
     private final long loginCapacity;
     private final long registerCapacity;
+    private final long analyticsEventCapacity;
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
     public RateLimitFilter(
             @Value("${rate-limit.login.capacity:10}") long loginCapacity,
-            @Value("${rate-limit.register.capacity:5}") long registerCapacity
+            @Value("${rate-limit.register.capacity:5}") long registerCapacity,
+            @Value("${rate-limit.analytics-events.capacity:120}") long analyticsEventCapacity
     ) {
         this.loginCapacity    = loginCapacity;
         this.registerCapacity = registerCapacity;
+        this.analyticsEventCapacity = analyticsEventCapacity;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return !path.equals(LOGIN_PATH) && !path.equals(REGISTER_PATH);
+        return !path.equals(LOGIN_PATH)
+                && !path.equals(REGISTER_PATH)
+                && !isAnalyticsEventRequest(request);
     }
 
     @Override
@@ -47,8 +53,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String path = request.getServletPath();
-        long capacity = path.equals(LOGIN_PATH) ? loginCapacity : registerCapacity;
-        String key = request.getRemoteAddr() + ":" + path;
+        boolean analyticsEvent = isAnalyticsEventRequest(request);
+        long capacity = analyticsEvent
+                ? analyticsEventCapacity
+                : path.equals(LOGIN_PATH) ? loginCapacity : registerCapacity;
+        // One bucket per client for all program events prevents callers from
+        // bypassing the limit by rotating program IDs (and avoids per-program keys).
+        String bucketPath = analyticsEvent ? ANALYTICS_EVENTS_KEY : path;
+        String key = request.getRemoteAddr() + ":" + bucketPath;
 
         Bucket bucket = buckets.computeIfAbsent(key, k -> buildBucket(capacity));
 
@@ -70,5 +82,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
                         .refillGreedy(capacity, Duration.ofMinutes(1))
                         .build())
                 .build();
+    }
+
+    private boolean isAnalyticsEventRequest(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return "POST".equals(request.getMethod())
+                && path.startsWith("/api/programs/")
+                && path.endsWith("/events");
     }
 }

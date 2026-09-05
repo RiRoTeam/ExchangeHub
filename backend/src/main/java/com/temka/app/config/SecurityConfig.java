@@ -51,6 +51,7 @@ public class SecurityConfig {
                                 "/api/programs",
                                 "/api/programs/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/programs/*/events").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/submissions/**").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
