@@ -27,6 +27,9 @@ services:
       DB_USER: ${DB_USER:-exchangehub}
       DB_PASSWORD: ${DB_PASSWORD:-exchangehub}
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-must-be-at-least-32-chars}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

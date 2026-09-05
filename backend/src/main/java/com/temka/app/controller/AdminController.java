@@ -1,11 +1,14 @@
 package com.temka.app.controller;
 
+import com.temka.app.dto.AdminUserResponse;
 import com.temka.app.dto.ProgramDto;
 import com.temka.app.dto.ProgramRequest;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionDto;
+import com.temka.app.dto.UpdateUserRoleRequest;
 import com.temka.app.service.ProgramService;
 import com.temka.app.service.SubmissionService;
+import com.temka.app.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +30,24 @@ public class AdminController {
 
     private final ProgramService programService;
     private final SubmissionService submissionService;
+    private final UserService userService;
+
+    // ── Users ──────────────────────────────────────────────────────────────────
+
+    @GetMapping("/users")
+    @Operation(summary = "List all users and their roles")
+    public List<AdminUserResponse> getUsers() {
+        return userService.getAllUsers();
+    }
+
+    @PatchMapping("/users/{id}/role")
+    @Operation(summary = "Change a user's role")
+    public AdminUserResponse changeUserRole(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserRoleRequest request
+    ) {
+        return userService.changeRole(id, request.role());
+    }
 
     // ── Submissions ────────────────────────────────────────────────────────────
 

@@ -1,10 +1,12 @@
 package com.temka.app.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.temka.app.dto.AdminUserResponse;
 import com.temka.app.dto.ProgramDto;
 import com.temka.app.dto.ProgramRequest;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionDto;
+import com.temka.app.entity.Role;
 import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.ProgramType;
 import com.temka.app.entity.SubmissionStatus;
@@ -13,6 +15,8 @@ import com.temka.app.security.JwtService;
 import com.temka.app.security.UserDetailsServiceImpl;
 import com.temka.app.service.ProgramService;
 import com.temka.app.service.SubmissionService;
+import com.temka.app.service.UserService;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -50,6 +54,9 @@ class AdminControllerTest {
     SubmissionService submissionService;
 
     @MockBean
+    UserService userService;
+
+    @MockBean
     JwtService jwtService;
 
     @MockBean
@@ -66,6 +73,70 @@ class AdminControllerTest {
     private SubmissionDto submissionDto(SubmissionStatus status) {
         return new SubmissionDto(1L, 2L, "User", "Sub", "Desc", "US",
                 ProgramType.SCHOLARSHIP, null, null, status, null, Instant.now(), null);
+    }
+
+    @Test
+    void getUsers_returns200WithRoles() throws Exception {
+        when(userService.getAllUsers()).thenReturn(List.of(
+                new AdminUserResponse(7L, "admin@example.com", "Admin", Role.ADMIN, Instant.parse("2026-01-01T00:00:00Z"))
+        ));
+
+        mockMvc.perform(get("/api/admin/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(7))
+                .andExpect(jsonPath("$[0].email").value("admin@example.com"))
+                .andExpect(jsonPath("$[0].role").value("ADMIN"));
+    }
+
+    @Test
+    void changeUserRole_returnsUpdatedUser() throws Exception {
+        when(userService.changeRole(7L, Role.ADMIN)).thenReturn(
+                new AdminUserResponse(7L, "user@example.com", "User", Role.ADMIN, Instant.parse("2026-01-01T00:00:00Z"))
+        );
+
+        mockMvc.perform(patch("/api/admin/users/7/role")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
+
+        verify(userService).changeRole(7L, Role.ADMIN);
+    }
+
+    @Test
+    void changeUserRole_missingRole_returns400() throws Exception {
+        mockMvc.perform(patch("/api/admin/users/7/role")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.role").exists());
+
+        verify(userService, never()).changeRole(any(), any());
+    }
+
+    @Test
+    void changeUserRole_lastAdminReturns409() throws Exception {
+        when(userService.changeRole(7L, Role.USER))
+                .thenThrow(new IllegalStateException("Cannot demote the last administrator"));
+
+        mockMvc.perform(patch("/api/admin/users/7/role")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"USER\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Cannot demote the last administrator"));
+    }
+
+    @Test
+    void changeUserRole_unknownUserReturns404() throws Exception {
+        when(userService.changeRole(99L, Role.ADMIN))
+                .thenThrow(new EntityNotFoundException("User not found: 99"));
+
+        mockMvc.perform(patch("/api/admin/users/99/role")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("User not found: 99"));
     }
 
     @Test

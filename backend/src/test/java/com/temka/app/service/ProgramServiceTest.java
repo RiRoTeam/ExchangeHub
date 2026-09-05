@@ -4,6 +4,7 @@ import com.temka.app.dto.ProgramRequest;
 import com.temka.app.entity.Program;
 import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.ProgramType;
+import com.temka.app.exception.BadRequestException;
 import com.temka.app.repository.ProgramRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,13 +48,27 @@ class ProgramServiceTest {
 
     @Test
     void list_returnsMappedDtos() {
-        when(programRepository.findFiltered(eq(ProgramStatus.ACTIVE), isNull(), isNull(), isNull()))
-                .thenReturn(List.of(sampleProgram()));
+        when(programRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sampleProgram())));
 
-        var result = programService.list(null, null, null);
+        var result = programService.list(null, null, null, 0, 20, "createdAt,desc");
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).title()).isEqualTo("Test Program");
+        assertThat(result.getContent().get(0).title()).isEqualTo("Test Program");
+    }
+
+    @Test
+    void list_rejectsOversizedPage() {
+        assertThatThrownBy(() -> programService.list(null, null, null, 0, 101, "createdAt,desc"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("between 1 and 100");
+    }
+
+    @Test
+    void list_rejectsUnknownSortProperty() {
+        assertThatThrownBy(() -> programService.list(null, null, null, 0, 20, "status,asc"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Unsupported program sort");
     }
 
     @Test

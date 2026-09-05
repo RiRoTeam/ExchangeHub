@@ -49,4 +49,14 @@ public class RefreshTokenService {
         }
         return token;
     }
+
+    @Transactional
+    public void revokeAllByUser(User user) {
+        repository.revokeAllByUser(user);
+    }
+
+    @Transactional
+    public void revoke(String rawToken) {
+        repository.revokeByToken(rawToken);
+    }
 }

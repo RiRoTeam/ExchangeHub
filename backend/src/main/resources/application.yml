@@ -23,6 +23,10 @@ app:
     secret: ${JWT_SECRET:change-me-in-production-must-be-at-least-32-chars}
     expiration-ms: 900000           # 15 minutes
     refresh-expiration-ms: 2592000000 # 30 days
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    name: ${BOOTSTRAP_ADMIN_NAME:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
 
 springdoc:
   swagger-ui:
