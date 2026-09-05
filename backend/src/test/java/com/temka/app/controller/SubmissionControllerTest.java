@@ -106,6 +106,21 @@ class SubmissionControllerTest {
     }
 
     @Test
+    void submit_deadlineToday_returns201() throws Exception {
+        when(submissionService.submit(any(), any())).thenReturn(submissionDto());
+
+        String body = String.format(
+                """
+                {"title":"Prog","description":"Desc","country":"US","type":"INTERNSHIP","deadline":"%s"}
+                """,
+                LocalDate.now());
+        mockMvc.perform(post("/api/submissions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void submit_titleTooLong_returns400() throws Exception {
         String longTitle = "A".repeat(256);
         String body = String.format(
