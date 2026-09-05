@@ -7,7 +7,9 @@
 ## Содержание
 
 - [Концепция](#концепция)
-- [Локальный backend с dev-данными](#локальный-backend-с-dev-данными)
+- [Быстрый запуск demo](#быстрый-запуск-demo)
+- [Что доступно в demo](#что-доступно-в-demo)
+- [Обычный локальный запуск](#обычный-локальный-запуск)
 - [Первый администратор](#первый-администратор)
 - [Проверка backend](#проверка-backend)
 - [Функциональные требования](#функциональные-требования)
@@ -25,23 +27,129 @@ ExchangeHub — мобильное приложение (iOS, Android) с веб
 
 **Ключевая идея:** не агрегатор крупных программ (Erasmus, AIESEC), а база нишевых, экспериментальных и малоизвестных возможностей — с механизмом пополнения самим сообществом.
 
-## Локальный backend с dev-данными
+## Быстрый запуск demo
 
-Профиль `dev` добавляет в каталог три идемпотентных примера: с прошедшим,
-сегодняшним и будущим дедлайнами, а также с разным временем создания. В других
-профилях сид не запускается.
+Для первого запуска нужны только:
+
+- Docker Desktop с Docker Compose;
+- `make` и `curl`;
+- свободные порты `3000` и `8080`.
 
 ```bash
-SPRING_PROFILES_ACTIVE=dev docker compose up -d --build db backend
+git clone https://github.com/RiRoTeam/ExchangeHub.git
+cd ExchangeHub
+make demo
 ```
 
-Для повторного запуска очищать базу не нужно: сид не дублирует уже добавленные
-примеры и не перезаписывает изменённые вручную данные.
+Команда собирает frontend/backend, применяет Flyway-миграции, создаёт отдельный
+Compose-проект `exchangehub-demo`, ожидает готовности healthchecks и идемпотентно
+наполняет PostgreSQL. `.env` для demo не требуется.
 
-После работы остановите и удалите контейнеры:
+Порты demo привязаны к `127.0.0.1`: интерфейс и API доступны только на вашем
+компьютере. Не публикуйте demo наружу — учётные данные ниже намеренно известны.
+
+После запуска:
+
+| Что открыть | Адрес |
+|---|---|
+| Web UI | [http://localhost:3000](http://localhost:3000) |
+| Swagger UI | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
+| OpenAPI JSON | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
+| Каталог API | [http://localhost:8080/api/programs?size=100](http://localhost:8080/api/programs?size=100) |
+
+Готовые локальные аккаунты (пароли существуют только в profile `demo`):
+
+| Роль | Email | Пароль |
+|---|---|---|
+| Администратор | `admin@demo.exchangehub.local` | `DemoAdmin123!` |
+| Пользователь | `student@demo.exchangehub.local` | `DemoUser123!` |
+| Автор заявок | `contributor@demo.exchangehub.local` | `DemoContributor123!` |
+
+Проверьте поднятый стек одной командой:
 
 ```bash
-docker compose down --remove-orphans
+make demo-smoke
+```
+
+Smoke проверяет Web UI, непустой paginated-каталог, OpenAPI и вход обоих ролей.
+API-запросы идут через nginx frontend-контейнера, а admin-токен дополнительно
+проверяется на защищённом endpoint управления пользователями.
+
+Остановить и удалить demo-контейнеры, сохранив БД:
+
+```bash
+make demo-down
+```
+
+Вернуть гарантированно чистое demo-состояние:
+
+```bash
+make demo-reset
+```
+
+> `make demo-reset` удаляет только volume проекта `exchangehub-demo` и все
+> изменения внутри demo-БД, после чего сразу создаёт её заново.
+
+Полностью удалить demo-контейнеры вместе с demo-volume:
+
+```bash
+make demo-clean
+```
+
+## Что доступно в demo
+
+Seed повторяемый и не перезаписывает данные, которые вы изменили вручную. Он
+создаёт:
+
+- 3 аккаунта с ролями `USER` и `ADMIN`;
+- 13 программ со всеми типами, разными странами, сроками и статусами;
+- 5 заявок: ожидающие проверки, одобренная и отклонённая;
+- избранное двух пользователей;
+- накопительную и дневную аналитику с заметным top-program ranking.
+
+Ссылки программ используют безопасный mock-домен `example.com`; это тестовые
+данные для проверки интерфейса, а не реальные страницы программ.
+
+Через Web UI удобно проверить регистрацию/вход, каталог, поиск, фильтры,
+карточки программ, создание заявок и профиль. Backend-функции избранного,
+модерации, ролей и аналитики полностью доступны в Swagger UI: нажмите
+`Authorize`, вставьте access token из `/api/auth/login` и вызывайте нужные
+endpoint'ы интерактивно.
+
+Посмотреть данные напрямую в PostgreSQL:
+
+```bash
+docker compose -p exchangehub-demo exec db sh -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Полезные команды:
+
+```bash
+docker compose -p exchangehub-demo ps
+docker compose -p exchangehub-demo logs -f backend
+docker compose -p exchangehub-demo logs -f frontend
+```
+
+## Обычный локальный запуск
+
+Обычный профиль не создаёт demo-пользователей и не включает известные пароли:
+
+```bash
+cp .env.example .env
+make up
+```
+
+Для небольшого каталога без demo-аккаунтов можно явно включить профиль `dev`:
+
+```bash
+SPRING_PROFILES_ACTIVE=dev docker compose up -d --build --wait
+```
+
+Остановить обычный стек:
+
+```bash
+make down
 ```
 
 ## Первый администратор
@@ -68,6 +176,15 @@ Flyway-миграции. Нужны Java 21, Maven и запущенный Docke
 ```bash
 cd backend
 mvn test
+```
+
+Нужен именно JDK 21 (`java -version`). Frontend проверяется отдельно:
+
+```bash
+cd frontend
+npm ci
+npm test
+npm run build
 ```
 
 Testcontainers удаляет свои контейнеры после завершения JVM. Для compose-стека

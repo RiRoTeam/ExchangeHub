@@ -4,13 +4,13 @@ spring:
     username: ${DB_USER:temka}
     password: ${DB_PASSWORD:temka}
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -30,6 +30,8 @@ app:
     email: ${BOOTSTRAP_ADMIN_EMAIL:}
     name: ${BOOTSTRAP_ADMIN_NAME:}
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:false}
 
 springdoc:
   swagger-ui:
