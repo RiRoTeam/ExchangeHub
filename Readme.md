@@ -8,10 +8,12 @@
 
 - [Концепция](#концепция)
 - [Локальный backend с dev-данными](#локальный-backend-с-dev-данными)
+- [Первый администратор](#первый-администратор)
+- [Проверка backend](#проверка-backend)
 - [Функциональные требования](#функциональные-требования)
-- [Архитектура](#архитектура)
+- [Целевая архитектура](#целевая-архитектура)
 - [Стек технологий](#стек-технологий)
-- [Структура базы данных](#структура-базы-данных)
+- [Целевая структура базы данных](#целевая-структура-базы-данных)
 - [REST API](#rest-api)
 - [Статусная модель](#статусная-модель)
 
@@ -41,6 +43,35 @@ SPRING_PROFILES_ACTIVE=dev docker compose up -d --build db backend
 ```bash
 docker compose down --remove-orphans
 ```
+
+## Первый администратор
+
+Безопасный bootstrap включается только при одновременной передаче трёх переменных.
+Он создаёт или повышает пользователя до `ADMIN`, только пока в системе ещё нет
+администратора. Пароль должен содержать от 12 до 72 символов.
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com \
+BOOTSTRAP_ADMIN_NAME=Administrator \
+BOOTSTRAP_ADMIN_PASSWORD='replace-with-a-strong-password' \
+docker compose up -d --build db backend
+```
+
+После первого успешного запуска удалите эти значения из окружения. В репозитории
+нет администратора или пароля по умолчанию.
+
+## Проверка backend
+
+Интеграционные тесты используют PostgreSQL 16 через Testcontainers и применяют все
+Flyway-миграции. Нужны Java 21, Maven и запущенный Docker:
+
+```bash
+cd backend
+mvn test
+```
+
+Testcontainers удаляет свои контейнеры после завершения JVM. Для compose-стека
+после проверки выполните `docker compose down --remove-orphans`.
 
 ---
 
@@ -78,7 +109,11 @@ docker compose down --remove-orphans
 
 ---
 
-## Архитектура
+## Целевая архитектура
+
+Диаграмма ниже описывает направление развития продукта. Текущий backend — один
+Spring Boot сервис с PostgreSQL; Redis, Elasticsearch, gateway и push-сервис пока
+не входят в рабочий локальный контур.
 
 ```
 ┌────────────┐  ┌────────────┐  ┌────────────────┐
@@ -160,7 +195,10 @@ docker compose down --remove-orphans
 
 ---
 
-## Структура базы данных
+## Целевая структура базы данных
+
+Это расширенная целевая модель продукта. Фактическая схема текущего backend
+зафиксирована и проверяется в `backend/src/main/resources/db/migration`.
 
 ### `users`
 ```sql
@@ -251,20 +289,32 @@ programs ──< program_tags >── tags
 
 ## REST API
 
-### Программы
+Актуальная машинно-читаемая спецификация: [`backend/openapi.yaml`](backend/openapi.yaml).
+При запущенном backend также доступны `/v3/api-docs` и `/swagger-ui.html`.
+
+### Аутентификация и профиль
 
 ```
-GET    /api/programs                  Каталог с фильтрами и пагинацией
+POST   /api/auth/register             Регистрация и выдача пары токенов
+POST   /api/auth/login                Вход и выдача пары токенов
+POST   /api/auth/refresh              Ротация refresh-токена
+POST   /api/auth/logout               Отзыв refresh-токена (идемпотентно)
+GET    /api/auth/me                   Текущий пользователь и роль
+PATCH  /api/users/me                  Изменение имени и/или пароля
+```
+
+### Программы и аналитические события
+
+```
+GET    /api/programs                  Активный каталог с фильтрами и пагинацией
 GET    /api/programs/{id}             Карточка программы
-GET    /api/programs/search?q=...     Полнотекстовый поиск
-GET    /api/programs/new              Лента новинок
+POST   /api/programs/{id}/events      Записать VIEW или CLICK
 ```
 
-Query-параметры для `/api/programs`:
-- `country`, `field`, `is_paid`, `is_remote` — фильтры
-- `tag` — фильтр по тегу (можно несколько)
-- `page`, `size` — пагинация
-- `sort` — `deadline_asc`, `created_at_desc`, `interest_count_desc`
+Параметры `/api/programs`: `type`, `country`, `q`, `page` (с нуля), `size`
+(1–100), `sort`. Сортировка принимает `createdAt|deadline|title|country` и
+направление `asc|desc`, например `createdAt,desc`; поддерживаются алиасы
+`created_at_desc` и `deadline_asc`.
 
 ### Предложки
 
@@ -273,27 +323,12 @@ POST   /api/submissions               Отправить предложку (aut
 GET    /api/submissions/my            Мои предложки и их статусы
 ```
 
-### Закладки
+### Избранное
 
 ```
-POST   /api/bookmarks                 Добавить в закладки
-DELETE /api/bookmarks/{programId}     Убрать из закладок
-GET    /api/bookmarks                 Мои закладки
-```
-
-### Трекер статусов
-
-```
-POST   /api/user/program-status       Установить/обновить статус
-GET    /api/user/program-status       Все статусы пользователя
-```
-
-### Аутентификация
-
-```
-POST   /api/auth/register
-POST   /api/auth/login
-POST   /api/auth/refresh
+GET    /api/users/me/favorites                 Список избранного
+POST   /api/users/me/favorites/{programId}     Добавить (идемпотентно)
+DELETE /api/users/me/favorites/{programId}     Удалить (идемпотентно)
 ```
 
 ### Администрирование (роль ADMIN)
@@ -303,8 +338,15 @@ GET    /api/admin/submissions         Очередь на модерацию
 PATCH  /api/admin/submissions/{id}    Одобрить или отклонить заявку
 POST   /api/admin/programs            Создать программу вручную
 PUT    /api/admin/programs/{id}       Редактировать программу
-GET    /api/admin/analytics           Статистика просмотров и интереса
+DELETE /api/admin/programs/{id}       Удалить программу
+GET    /api/admin/users               Пользователи и роли
+PATCH  /api/admin/users/{id}/role     Изменить роль и отозвать refresh-токены
+GET    /api/admin/analytics           Метрики, топ программ и динамика за 30 дней
 ```
+
+Последнего администратора понизить нельзя. Все `/api/admin/**` требуют роль
+`ADMIN`; пользовательские эндпоинты требуют Bearer access token. Ошибки API
+возвращаются в формате `application/problem+json`.
 
 ---
 
@@ -315,11 +357,4 @@ GET    /api/admin/analytics           Статистика просмотров 
 ```
 PENDING ──► APPROVED ──► (автоматически создаётся запись в programs)
         └──► REJECTED   (с указанием причины в reject_reason)
-```
-
-### Трекер пользователя (`user_program_status.status`)
-
-```
-INTERESTED ──► APPLIED ──► WAITING ──► ACCEPTED
-                                   └──► REJECTED
 ```
