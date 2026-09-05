@@ -3,6 +3,7 @@ package com.temka.app.controller;
 import com.temka.app.dto.ProgramDto;
 import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.ProgramType;
+import com.temka.app.config.PaginationConfig;
 import com.temka.app.security.JwtAuthFilter;
 import com.temka.app.security.JwtService;
 import com.temka.app.security.UserDetailsServiceImpl;
@@ -13,7 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Import;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ProgramController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(PaginationConfig.class)
 class ProgramControllerTest {
 
     @Autowired
@@ -49,21 +53,24 @@ class ProgramControllerTest {
 
     @Test
     void list_returns200WithPrograms() throws Exception {
-        when(programService.list(null, null, null)).thenReturn(List.of(sampleDto()));
+        when(programService.list(null, null, null, 0, 20, "createdAt,desc"))
+                .thenReturn(new PageImpl<>(List.of(sampleDto())));
 
         mockMvc.perform(get("/api/programs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Test"))
-                .andExpect(jsonPath("$[0].country").value("Germany"));
+                .andExpect(jsonPath("$.content[0].title").value("Test"))
+                .andExpect(jsonPath("$.content[0].country").value("Germany"))
+                .andExpect(jsonPath("$.page.totalElements").value(1));
     }
 
     @Test
     void list_withTypeFilter_passesFilterToService() throws Exception {
-        when(programService.list(ProgramType.INTERNSHIP, null, null)).thenReturn(List.of(sampleDto()));
+        when(programService.list(ProgramType.INTERNSHIP, null, null, 0, 20, "createdAt,desc"))
+                .thenReturn(new PageImpl<>(List.of(sampleDto())));
 
         mockMvc.perform(get("/api/programs").param("type", "INTERNSHIP"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].type").value("INTERNSHIP"));
+                .andExpect(jsonPath("$.content[0].type").value("INTERNSHIP"));
     }
 
     @Test
@@ -85,7 +92,8 @@ class ProgramControllerTest {
 
     @Test
     void unexpectedException_returnsProblemDetail500() throws Exception {
-        when(programService.list(null, null, null)).thenThrow(new RuntimeException("database unavailable"));
+        when(programService.list(null, null, null, 0, 20, "createdAt,desc"))
+                .thenThrow(new RuntimeException("database unavailable"));
 
         mockMvc.perform(get("/api/programs"))
                 .andExpect(status().isInternalServerError())

@@ -7,9 +7,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/programs")
@@ -21,12 +20,16 @@ public class ProgramController {
 
     @GetMapping
     @Operation(summary = "List active programs with optional filters")
-    public List<ProgramDto> list(
+    public Page<ProgramDto> list(
             @Parameter(description = "Filter by program type") @RequestParam(required = false) ProgramType type,
             @Parameter(description = "Filter by country (partial match)") @RequestParam(required = false) String country,
-            @Parameter(description = "Full-text search in title and description") @RequestParam(required = false) String q
+            @Parameter(description = "Full-text search in title and description") @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Sort as field,direction")
+            @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
-        return programService.list(type, country, q);
+        return programService.list(type, country, q, page, size, sort);
     }
 
     @GetMapping("/{id}")

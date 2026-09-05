@@ -5,11 +5,17 @@ import com.temka.app.AbstractIntegrationTest;
 import com.temka.app.dto.AuthResponse;
 import com.temka.app.repository.RefreshTokenRepository;
 import com.temka.app.repository.UserRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -184,6 +190,64 @@ class AuthControllerTest extends AbstractIntegrationTest {
     @Test
     void refresh_blankToken_returns400() throws Exception {
         mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── Logout ───────────────────────────────────────────────────────────────
+
+    @Test
+    void logout_validToken_revokesItAndReturns204() throws Exception {
+        String refreshToken = registerAndGetRefreshToken("logout@test.com");
+
+        mvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Refresh token has been revoked"));
+    }
+
+    @Test
+    void logout_unknownOrAlreadyRevokedToken_isIdempotent() throws Exception {
+        String body = "{\"refreshToken\":\"00000000-0000-0000-0000-000000000000\"}";
+
+        mvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void logout_withExpiredAccessToken_isStillPublic() throws Exception {
+        var signingKey = Keys.hmacShaKeyFor(
+                "test-secret-key-must-be-at-least-32-chars-long".getBytes(StandardCharsets.UTF_8));
+        var expiredAccessToken = Jwts.builder()
+                .subject("expired@test.com")
+                .issuedAt(Date.from(Instant.now().minusSeconds(120)))
+                .expiration(Date.from(Instant.now().minusSeconds(60)))
+                .signWith(signingKey)
+                .compact();
+
+        mvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + expiredAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"unknown-token\"}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void logout_blankToken_returns400() throws Exception {
+        mvc.perform(post("/api/auth/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"\"}"))
                 .andExpect(status().isBadRequest());

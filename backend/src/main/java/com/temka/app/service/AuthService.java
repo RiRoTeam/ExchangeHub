@@ -56,6 +56,11 @@ public class AuthService {
         return buildTokenPair(user);
     }
 
+    @Transactional
+    public void logout(RefreshRequest request) {
+        refreshTokenService.revoke(request.refreshToken());
+    }
+
     private AuthResponse buildTokenPair(User user) {
         var accessToken = jwtService.generateAccessToken(user);
         var refreshToken = refreshTokenService.createRefreshToken(user);

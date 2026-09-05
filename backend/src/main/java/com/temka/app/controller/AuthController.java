@@ -43,6 +43,13 @@ public class AuthController {
         return authService.refresh(request);
     }
 
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Revoke a refresh token")
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request);
+    }
+
     @GetMapping("/me")
     @Operation(summary = "Get current user's profile and role")
     @SecurityRequirement(name = "bearerAuth")

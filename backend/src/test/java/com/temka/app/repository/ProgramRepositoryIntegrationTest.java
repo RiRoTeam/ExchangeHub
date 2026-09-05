@@ -7,6 +7,10 @@ import com.temka.app.entity.ProgramType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
+import static com.temka.app.repository.ProgramSpecifications.activeCatalog;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,18 +38,20 @@ class ProgramRepositoryIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void findFiltered_acceptsNullFiltersOnPostgres() {
-        var programs = programRepository.findFiltered(
-                ProgramStatus.ACTIVE, null, null, null);
+        var programs = programRepository.findAll(
+                activeCatalog(null, null, null),
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")));
 
-        assertThat(programs).hasSize(2);
+        assertThat(programs.getContent()).hasSize(2);
     }
 
     @Test
     void findFiltered_combinesCaseInsensitiveFiltersOnPostgres() {
-        var programs = programRepository.findFiltered(
-                ProgramStatus.ACTIVE, ProgramType.EXCHANGE, "eSt", "RESEARCH");
+        var programs = programRepository.findAll(
+                activeCatalog(ProgramType.EXCHANGE, "eSt", "RESEARCH"),
+                PageRequest.of(0, 20));
 
-        assertThat(programs)
+        assertThat(programs.getContent())
                 .extracting(Program::getTitle)
                 .containsExactly("Research Exchange");
     }
