@@ -5,6 +5,7 @@ import com.temka.app.dto.SubmissionRequest;
 import com.temka.app.entity.*;
 import com.temka.app.repository.ProgramRepository;
 import com.temka.app.repository.SubmissionRepository;
+import com.temka.app.exception.BadRequestException;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -135,5 +136,17 @@ class SubmissionServiceTest {
 
         assertThatThrownBy(() -> submissionService.review(99L, new ReviewSubmissionRequest(SubmissionStatus.APPROVED, null)))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void review_rejectsPendingAsAReviewDecision() {
+        assertThatThrownBy(() -> submissionService.review(
+                1L,
+                new ReviewSubmissionRequest(SubmissionStatus.PENDING, null)
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Review status must be APPROVED or REJECTED");
+
+        verifyNoInteractions(submissionRepository, programRepository);
     }
 }

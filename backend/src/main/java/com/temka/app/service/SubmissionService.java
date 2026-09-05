@@ -7,6 +7,7 @@ import com.temka.app.entity.Program;
 import com.temka.app.entity.Submission;
 import com.temka.app.entity.SubmissionStatus;
 import com.temka.app.entity.User;
+import com.temka.app.exception.BadRequestException;
 import com.temka.app.repository.ProgramRepository;
 import com.temka.app.repository.SubmissionRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -58,6 +59,9 @@ public class SubmissionService {
 
     @Transactional
     public SubmissionDto review(Long id, ReviewSubmissionRequest request) {
+        if (request.status() == SubmissionStatus.PENDING) {
+            throw new BadRequestException("Review status must be APPROVED or REJECTED");
+        }
         var submission = findOrThrow(id);
         if (submission.getStatus() != SubmissionStatus.PENDING) {
             throw new IllegalStateException("Submission already reviewed");
