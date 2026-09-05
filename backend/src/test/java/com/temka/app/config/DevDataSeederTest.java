@@ -38,7 +38,7 @@ class DevDataSeederTest {
         Profile profile = AnnotatedElementUtils.findMergedAnnotation(DevDataSeeder.class, Profile.class);
 
         assertThat(profile).isNotNull();
-        assertThat(profile.value()).containsExactly("dev");
+        assertThat(profile.value()).containsExactly("dev", "demo");
     }
 
     @Test

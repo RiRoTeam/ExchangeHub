@@ -2,6 +2,35 @@ import { authorizedJsonBody, requestJson } from "../../shared/api/http";
 import type { Program, ProgramFilters } from "../../shared/types/program";
 import type { ProgramDraft } from "../../shared/types/submission";
 
+type SpringSort = {
+  empty: boolean;
+  sorted: boolean;
+  unsorted: boolean;
+};
+
+type SpringPageable = {
+  pageNumber: number;
+  pageSize: number;
+  sort: SpringSort;
+  offset: number;
+  paged: boolean;
+  unpaged: boolean;
+};
+
+export type SpringPage<T> = {
+  content: T[];
+  pageable: SpringPageable;
+  last: boolean;
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  sort: SpringSort;
+  first: boolean;
+  numberOfElements: number;
+  empty: boolean;
+};
+
 function toSearchParams(filters: ProgramFilters) {
   const searchParams = new URLSearchParams();
 
@@ -25,7 +54,8 @@ export async function listPrograms(filters: ProgramFilters, signal?: AbortSignal
   const query = searchParams.toString();
   const path = query ? `/programs?${query}` : "/programs";
 
-  return requestJson<Program[]>(path, { signal });
+  const page = await requestJson<SpringPage<Program>>(path, { signal });
+  return page.content;
 }
 
 /** GET /api/programs/{id} — публичная карточка программы. */
