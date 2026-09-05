@@ -75,6 +75,14 @@ class SecurityRulesTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void programAnalyticsEvents_arePublic() throws Exception {
+        mvc.perform(post("/api/programs/999999/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"VIEW\"}"))
+                .andExpect(status().isNotFound());
+    }
+
     // ── Без токена → 401 ─────────────────────────────────────────────────────
 
     @Test

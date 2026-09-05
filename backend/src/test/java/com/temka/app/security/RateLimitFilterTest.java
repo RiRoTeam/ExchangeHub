@@ -10,12 +10,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RateLimitFilterTest {
 
-    // capacity: login=3, register=2
+    // capacity: login=3, register=2, analytics events=4
     private RateLimitFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new RateLimitFilter(3, 2);
+        filter = new RateLimitFilter(3, 2, 4);
     }
 
     @Test
@@ -68,6 +68,30 @@ class RateLimitFilterTest {
             var response = doRequest("10.2.0.1", "/api/programs");
             assertThat(response.getStatus()).isNotEqualTo(429);
         }
+    }
+
+    @Test
+    void analyticsEvents_sharePerIpLimitAcrossPrograms() throws Exception {
+        doRequest("10.3.0.1", "/api/programs/1/events");
+        doRequest("10.3.0.1", "/api/programs/2/events");
+        doRequest("10.3.0.1", "/api/programs/3/events");
+        doRequest("10.3.0.1", "/api/programs/4/events");
+
+        var response = doRequest("10.3.0.1", "/api/programs/5/events");
+
+        assertThat(response.getStatus()).isEqualTo(429);
+        assertThat(response.getHeader("Retry-After")).isEqualTo("60");
+    }
+
+    @Test
+    void analyticsEventLimitsAreIndependentPerIp() throws Exception {
+        for (int i = 0; i < 4; i++) {
+            doRequest("10.4.0.1", "/api/programs/1/events");
+        }
+
+        var response = doRequest("10.4.0.2", "/api/programs/1/events");
+
+        assertThat(response.getStatus()).isNotEqualTo(429);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

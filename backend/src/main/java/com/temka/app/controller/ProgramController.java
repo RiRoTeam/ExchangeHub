@@ -1,12 +1,16 @@
 package com.temka.app.controller;
 
 import com.temka.app.dto.ProgramDto;
+import com.temka.app.dto.ProgramAnalyticsEventRequest;
 import com.temka.app.entity.ProgramType;
+import com.temka.app.service.ProgramAnalyticsService;
 import com.temka.app.service.ProgramService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProgramController {
 
     private final ProgramService programService;
+    private final ProgramAnalyticsService programAnalyticsService;
 
     @GetMapping
     @Operation(summary = "List active programs with optional filters")
@@ -36,5 +41,15 @@ public class ProgramController {
     @Operation(summary = "Get a program by ID")
     public ProgramDto getById(@PathVariable Long id) {
         return programService.getById(id);
+    }
+
+    @PostMapping("/{id}/events")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Record a program view or outbound-link click")
+    public void recordEvent(
+            @PathVariable long id,
+            @Valid @RequestBody ProgramAnalyticsEventRequest request
+    ) {
+        programAnalyticsService.record(id, request.type());
     }
 }

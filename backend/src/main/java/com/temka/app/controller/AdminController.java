@@ -1,12 +1,14 @@
 package com.temka.app.controller;
 
 import com.temka.app.dto.AdminUserResponse;
+import com.temka.app.dto.AdminAnalyticsResponse;
 import com.temka.app.dto.ProgramDto;
 import com.temka.app.dto.ProgramRequest;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionDto;
 import com.temka.app.dto.UpdateUserRoleRequest;
 import com.temka.app.service.ProgramService;
+import com.temka.app.service.ProgramAnalyticsService;
 import com.temka.app.service.SubmissionService;
 import com.temka.app.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,11 +17,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -29,6 +29,7 @@ import java.util.Map;
 public class AdminController {
 
     private final ProgramService programService;
+    private final ProgramAnalyticsService programAnalyticsService;
     private final SubmissionService submissionService;
     private final UserService userService;
 
@@ -70,9 +71,9 @@ public class AdminController {
     }
 
     @GetMapping("/analytics")
-    @Operation(summary = "View analytics (coming soon)")
-    public ResponseEntity<Map<String, String>> getAnalytics() {
-        return ResponseEntity.ok(Map.of("message", "Analytics — coming soon"));
+    @Operation(summary = "View platform and program engagement analytics")
+    public AdminAnalyticsResponse getAnalytics() {
+        return programAnalyticsService.getAdminAnalytics();
     }
 
     // ── Programs ───────────────────────────────────────────────────────────────

@@ -1,11 +1,13 @@
 package com.temka.app.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.temka.app.dto.AdminAnalyticsResponse;
 import com.temka.app.dto.AdminUserResponse;
 import com.temka.app.dto.ProgramDto;
 import com.temka.app.dto.ProgramRequest;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionDto;
+import com.temka.app.dto.TopProgramAnalyticsResponse;
 import com.temka.app.entity.Role;
 import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.ProgramType;
@@ -14,6 +16,7 @@ import com.temka.app.security.JwtAuthFilter;
 import com.temka.app.security.JwtService;
 import com.temka.app.security.UserDetailsServiceImpl;
 import com.temka.app.service.ProgramService;
+import com.temka.app.service.ProgramAnalyticsService;
 import com.temka.app.service.SubmissionService;
 import com.temka.app.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
@@ -49,6 +52,9 @@ class AdminControllerTest {
 
     @MockBean
     ProgramService programService;
+
+    @MockBean
+    ProgramAnalyticsService programAnalyticsService;
 
     @MockBean
     SubmissionService submissionService;
@@ -146,6 +152,31 @@ class AdminControllerTest {
         mockMvc.perform(get("/api/admin/submissions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
+    }
+
+    @Test
+    void getAnalytics_returnsTotalsAndTopPrograms() throws Exception {
+        when(programAnalyticsService.getAdminAnalytics()).thenReturn(
+                new AdminAnalyticsResponse(
+                        12, 4, 7, 9, 100, 25,
+                        List.of(new TopProgramAnalyticsResponse(
+                                1L, "Popular program", 80, 20, 5, 105
+                        ))
+                )
+        );
+
+        mockMvc.perform(get("/api/admin/analytics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users").value(12))
+                .andExpect(jsonPath("$.programs").value(4))
+                .andExpect(jsonPath("$.submissions").value(7))
+                .andExpect(jsonPath("$.favorites").value(9))
+                .andExpect(jsonPath("$.views").value(100))
+                .andExpect(jsonPath("$.clicks").value(25))
+                .andExpect(jsonPath("$.topPrograms[0].id").value(1))
+                .andExpect(jsonPath("$.topPrograms[0].totalEngagement").value(105));
+
+        verify(programAnalyticsService).getAdminAnalytics();
     }
 
     @Test

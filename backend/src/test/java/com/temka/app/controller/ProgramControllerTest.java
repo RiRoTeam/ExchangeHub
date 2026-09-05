@@ -7,6 +7,7 @@ import com.temka.app.config.PaginationConfig;
 import com.temka.app.security.JwtAuthFilter;
 import com.temka.app.security.JwtService;
 import com.temka.app.security.UserDetailsServiceImpl;
+import com.temka.app.service.ProgramAnalyticsService;
 import com.temka.app.service.ProgramService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -21,8 +22,12 @@ import org.springframework.context.annotation.Import;
 import java.time.Instant;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProgramController.class)
@@ -35,6 +40,9 @@ class ProgramControllerTest {
 
     @MockBean
     ProgramService programService;
+
+    @MockBean
+    ProgramAnalyticsService programAnalyticsService;
 
     @MockBean
     JwtService jwtService;
@@ -88,6 +96,41 @@ class ProgramControllerTest {
 
         mockMvc.perform(get("/api/programs/99"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void recordEvent_validView_returns204() throws Exception {
+        mockMvc.perform(post("/api/programs/1/events")
+                        .contentType("application/json")
+                        .content("{\"type\":\"VIEW\"}"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(programAnalyticsService).record(
+                1L, com.temka.app.entity.ProgramAnalyticsEventType.VIEW);
+    }
+
+    @Test
+    void recordEvent_missingType_returns400WithoutRecording() throws Exception {
+        mockMvc.perform(post("/api/programs/1/events")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.type").exists());
+
+        verify(programAnalyticsService, never()).record(anyLong(), any());
+    }
+
+    @Test
+    void recordEvent_unsupportedType_returns400WithoutRecording() throws Exception {
+        mockMvc.perform(post("/api/programs/1/events")
+                        .contentType("application/json")
+                        .content("{\"type\":\"DOWNLOAD\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        "Request body is malformed or contains an unsupported value"));
+
+        verify(programAnalyticsService, never()).record(anyLong(), any());
     }
 
     @Test
