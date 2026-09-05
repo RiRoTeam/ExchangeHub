@@ -1,7 +1,7 @@
 package com.temka.app.dto;
 
 import com.temka.app.entity.ProgramType;
-import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,6 +14,6 @@ public record ProgramRequest(
         @NotBlank @Size(max = 5000) String description,
         @NotBlank String country,
         @NotNull ProgramType type,
-        @Future LocalDate deadline,
+        @FutureOrPresent LocalDate deadline,
         @URL String url
 ) {}
