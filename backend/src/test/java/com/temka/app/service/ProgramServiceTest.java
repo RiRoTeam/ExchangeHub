@@ -10,6 +10,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -55,6 +56,24 @@ class ProgramServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.getContent().get(0).title()).isEqualTo("Test Program");
+    }
+
+    @Test
+    void list_addsIdAsStableSecondarySort() {
+        when(programRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        programService.list(null, null, null, 0, 20, "deadline,desc");
+
+        var pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(programRepository).findAll(any(Specification.class), pageable.capture());
+        assertThat(pageable.getValue().getSort().stream())
+                .extracting(org.springframework.data.domain.Sort.Order::getProperty)
+                .containsExactly("deadline", "id");
+        assertThat(pageable.getValue().getSort().getOrderFor("deadline").getDirection())
+                .isEqualTo(org.springframework.data.domain.Sort.Direction.DESC);
+        assertThat(pageable.getValue().getSort().getOrderFor("id").getDirection())
+                .isEqualTo(org.springframework.data.domain.Sort.Direction.ASC);
     }
 
     @Test

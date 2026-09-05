@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +33,8 @@ class ProgramAnalyticsServiceTest {
 
         verify(analyticsRepository).incrementViews(7L);
         verify(analyticsRepository).incrementClicks(7L);
+        verify(analyticsRepository).incrementDailyViews(7L);
+        verify(analyticsRepository).incrementDailyClicks(7L);
     }
 
     @Test
@@ -51,6 +54,8 @@ class ProgramAnalyticsServiceTest {
                 ProgramAnalyticsRepository.AnalyticsTotalsProjection.class);
         var top = org.mockito.Mockito.mock(
                 ProgramAnalyticsRepository.TopProgramProjection.class);
+        var daily = org.mockito.Mockito.mock(
+                ProgramAnalyticsRepository.DailyEngagementProjection.class);
         when(totals.getUsers()).thenReturn(3L);
         when(totals.getPrograms()).thenReturn(2L);
         when(totals.getSubmissions()).thenReturn(4L);
@@ -63,8 +68,12 @@ class ProgramAnalyticsServiceTest {
         when(top.getClicks()).thenReturn(4L);
         when(top.getFavorites()).thenReturn(2L);
         when(top.getTotalEngagement()).thenReturn(18L);
+        when(daily.getEventDate()).thenReturn(LocalDate.of(2026, 9, 5));
+        when(daily.getViews()).thenReturn(7L);
+        when(daily.getClicks()).thenReturn(2L);
         when(analyticsRepository.findAnalyticsTotals()).thenReturn(totals);
         when(analyticsRepository.findTopPrograms(10)).thenReturn(List.of(top));
+        when(analyticsRepository.findDailyEngagement()).thenReturn(List.of(daily));
 
         var response = service.getAdminAnalytics();
 
@@ -74,6 +83,10 @@ class ProgramAnalyticsServiceTest {
         assertThat(response.topPrograms()).singleElement().satisfies(program -> {
             assertThat(program.id()).isEqualTo(8);
             assertThat(program.totalEngagement()).isEqualTo(18);
+        });
+        assertThat(response.dailyEngagement()).singleElement().satisfies(day -> {
+            assertThat(day.date()).isEqualTo(LocalDate.of(2026, 9, 5));
+            assertThat(day.totalEngagement()).isEqualTo(9);
         });
     }
 }

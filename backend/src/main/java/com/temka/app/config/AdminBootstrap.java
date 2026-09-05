@@ -75,6 +75,9 @@ public class AdminBootstrap implements ApplicationRunner {
         if (!properties.email().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
             throw new IllegalStateException("BOOTSTRAP_ADMIN_EMAIL must be a valid email address");
         }
+        if (properties.email().length() > 255) {
+            throw new IllegalStateException("BOOTSTRAP_ADMIN_EMAIL must contain at most 255 characters");
+        }
         if (properties.name().length() < 2 || properties.name().length() > 100) {
             throw new IllegalStateException("BOOTSTRAP_ADMIN_NAME must contain 2 to 100 characters");
         }

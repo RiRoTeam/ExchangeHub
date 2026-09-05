@@ -123,6 +123,8 @@ public class ProgramService {
                         .orElseThrow(() -> new BadRequestException(
                                 "Sort direction must be asc or desc"));
 
-        return PageRequest.of(page, size, Sort.by(direction, SORT_FIELDS.get(parts[0])));
+        var stableSort = Sort.by(direction, SORT_FIELDS.get(parts[0]))
+                .and(Sort.by(Sort.Direction.ASC, "id"));
+        return PageRequest.of(page, size, stableSort);
     }
 }

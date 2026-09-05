@@ -9,6 +9,7 @@ public record AdminAnalyticsResponse(
         long favorites,
         long views,
         long clicks,
-        List<TopProgramAnalyticsResponse> topPrograms
+        List<TopProgramAnalyticsResponse> topPrograms,
+        List<DailyEngagementResponse> dailyEngagement
 ) {
 }

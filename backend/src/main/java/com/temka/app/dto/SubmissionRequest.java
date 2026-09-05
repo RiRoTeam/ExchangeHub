@@ -12,8 +12,8 @@ import java.time.LocalDate;
 public record SubmissionRequest(
         @NotBlank @Size(max = 255) String title,
         @NotBlank @Size(max = 5000) String description,
-        @NotBlank String country,
+        @NotBlank @Size(max = 100) String country,
         @NotNull ProgramType type,
         @FutureOrPresent LocalDate deadline,
-        @URL String url
+        @URL @Size(max = 500) String url
 ) {}

@@ -54,6 +54,19 @@ class AdminBootstrapTest {
     }
 
     @Test
+    void oversizedBootstrapEmailFailsBeforeDatabaseInsert() {
+        String oversizedEmail = "a".repeat(244) + "@example.com";
+
+        assertThatThrownBy(() -> bootstrap(
+                new AdminBootstrapProperties(
+                        oversizedEmail, "Admin", "long-secure-password")
+        )).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("at most 255");
+
+        verifyNoInteractions(userRepository, passwordEncoder, refreshTokenService);
+    }
+
+    @Test
     void existingAdminPreventsBootstrapMutation() {
         var existingAdmin = user(Role.ADMIN);
         when(userRepository.findAllAdminsForUpdate()).thenReturn(List.of(existingAdmin));

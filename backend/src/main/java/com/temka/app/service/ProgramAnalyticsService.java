@@ -1,6 +1,7 @@
 package com.temka.app.service;
 
 import com.temka.app.dto.AdminAnalyticsResponse;
+import com.temka.app.dto.DailyEngagementResponse;
 import com.temka.app.dto.TopProgramAnalyticsResponse;
 import com.temka.app.entity.ProgramAnalyticsEventType;
 import com.temka.app.repository.ProgramAnalyticsRepository;
@@ -20,8 +21,20 @@ public class ProgramAnalyticsService {
     @Transactional
     public void record(long programId, ProgramAnalyticsEventType type) {
         int affected = switch (type) {
-            case VIEW -> analyticsRepository.incrementViews(programId);
-            case CLICK -> analyticsRepository.incrementClicks(programId);
+            case VIEW -> {
+                int updated = analyticsRepository.incrementViews(programId);
+                if (updated > 0) {
+                    analyticsRepository.incrementDailyViews(programId);
+                }
+                yield updated;
+            }
+            case CLICK -> {
+                int updated = analyticsRepository.incrementClicks(programId);
+                if (updated > 0) {
+                    analyticsRepository.incrementDailyClicks(programId);
+                }
+                yield updated;
+            }
         };
         if (affected == 0) {
             throw new EntityNotFoundException("Program not found: " + programId);
@@ -41,6 +54,14 @@ public class ProgramAnalyticsService {
                         program.getTotalEngagement()
                 ))
                 .toList();
+        var dailyEngagement = analyticsRepository.findDailyEngagement().stream()
+                .map(day -> new DailyEngagementResponse(
+                        day.getEventDate(),
+                        day.getViews(),
+                        day.getClicks(),
+                        day.getViews() + day.getClicks()
+                ))
+                .toList();
         return new AdminAnalyticsResponse(
                 totals.getUsers(),
                 totals.getPrograms(),
@@ -48,7 +69,8 @@ public class ProgramAnalyticsService {
                 totals.getFavorites(),
                 totals.getViews(),
                 totals.getClicks(),
-                topPrograms
+                topPrograms,
+                dailyEngagement
         );
     }
 }

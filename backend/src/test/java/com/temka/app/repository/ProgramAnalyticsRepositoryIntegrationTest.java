@@ -9,6 +9,7 @@ import com.temka.app.entity.User;
 import com.temka.app.entity.UserFavorite;
 import com.temka.app.entity.UserFavoriteId;
 import com.temka.app.service.ProgramAnalyticsService;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,7 @@ class ProgramAnalyticsRepositoryIntegrationTest extends AbstractIntegrationTest 
 
     @BeforeEach
     void clearAnalytics() {
+        analyticsRepository.deleteDailyAnalytics();
         analyticsRepository.deleteAll();
     }
 
@@ -66,6 +68,21 @@ class ProgramAnalyticsRepositoryIntegrationTest extends AbstractIntegrationTest 
         var analytics = analyticsRepository.findById(program.getId()).orElseThrow();
         assertThat(analytics.getViewCount()).isEqualTo(eventCount);
         assertThat(analytics.getClickCount()).isZero();
+        assertThat(analyticsRepository.findDailyEngagement().getLast().getViews())
+                .isEqualTo(eventCount);
+    }
+
+    @Test
+    void unknownProgramDoesNotCreateDailyAnalytics() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        analyticsService.record(Long.MAX_VALUE, ProgramAnalyticsEventType.VIEW))
+                .isInstanceOf(EntityNotFoundException.class);
+
+        assertThat(analyticsRepository.findDailyEngagement())
+                .allSatisfy(day -> {
+                    assertThat(day.getViews()).isZero();
+                    assertThat(day.getClicks()).isZero();
+                });
     }
 
     @Test
@@ -136,5 +153,10 @@ class ProgramAnalyticsRepositoryIntegrationTest extends AbstractIntegrationTest 
                     assertThat(top.getFavorites()).isEqualTo(1);
                     assertThat(top.getTotalEngagement()).isEqualTo(3);
                 });
+        assertThat(analyticsRepository.findDailyEngagement()).hasSize(30);
+        assertThat(analyticsRepository.findDailyEngagement().getLast()).satisfies(day -> {
+            assertThat(day.getViews()).isEqualTo(1);
+            assertThat(day.getClicks()).isEqualTo(1);
+        });
     }
 }
