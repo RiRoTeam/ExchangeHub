@@ -1,102 +1,76 @@
 openapi: 3.0.3
 info:
   title: ExchangeHub API
+  version: 1.1.0
   description: |
-    Backend API for ExchangeHub — a platform for discovering niche internship
-    and international exchange programs.
+    REST API for the ExchangeHub program catalog, user workflows and administration.
 
-    ## Authentication
-    Most write endpoints require a Bearer JWT. Obtain tokens via `/api/auth/login`
-    or `/api/auth/register`, then pass the `accessToken` in the `Authorization` header:
-    ```
-    Authorization: Bearer <accessToken>
-    ```
-    Access tokens expire in **15 minutes**. Use `/api/auth/refresh` with the
-    `refreshToken` to get a new pair.
-
-    ## Roles
-    | Role  | Description                              |
-    |-------|------------------------------------------|
-    | USER  | Default role for all registered accounts |
-    | ADMIN | Full access to admin endpoints           |
-
-    Call `GET /api/auth/me` after login to retrieve the current user's role
-    and conditionally render UI elements on the frontend.
-  version: 1.0.0
-  contact:
-    name: ExchangeHub Team
-
+    Access tokens are Bearer JWTs valid for 15 minutes. Refresh tokens are valid
+    for 30 days and can be rotated with `/api/auth/refresh` or revoked with
+    `/api/auth/logout`.
 servers:
   - url: http://localhost:8080
     description: Local development
-
 tags:
   - name: Auth
-    description: Registration, login, token refresh, and current user info
   - name: Programs
-    description: Public catalog of exchange and internship programs
+  - name: Users
   - name: Submissions
-    description: User-submitted programs awaiting admin review
   - name: Admin
-    description: Admin-only management endpoints (requires ROLE_ADMIN)
 
 paths:
-
-  # ── Auth ──────────────────────────────────────────────────────────────────
-
   /api/auth/register:
     post:
       tags: [Auth]
-      summary: Register a new user account
+      summary: Register a user and return a token pair
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
-            example:
-              email: alice@example.com
-              name: Alice
-              password: secret123
       responses:
         '201':
-          description: Account created; tokens returned
+          description: Account created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          $ref: '#/components/responses/BadRequest'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/auth/login:
     post:
       tags: [Auth]
-      summary: Login and receive access + refresh tokens
+      summary: Authenticate and return a token pair
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
-            example:
-              email: alice@example.com
-              password: secret123
       responses:
         '200':
-          description: Tokens returned
+          description: Authentication succeeded
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/auth/refresh:
     post:
       tags: [Auth]
-      summary: Obtain a new access token using a refresh token
+      summary: Rotate a valid refresh token
       requestBody:
         required: true
         content:
@@ -105,73 +79,99 @@ paths:
               $ref: '#/components/schemas/RefreshRequest'
       responses:
         '200':
-          description: New token pair returned
+          description: New token pair
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke a refresh token
+      description: Idempotent. An already revoked or unknown token is accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: Token is no longer valid
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/auth/me:
     get:
       tags: [Auth]
-      summary: Get current user's profile and role
-      description: |
-        Returns the authenticated user's id, email, name and **role**.
-        Use this on the frontend immediately after login to decide which UI
-        elements to render (e.g. admin panel link).
+      summary: Get the current user's profile and role
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Current user info
+          description: Current user
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserMeResponse'
-              example:
-                id: 1
-                email: alice@example.com
-                name: Alice
-                role: USER
+                $ref: '#/components/schemas/UserResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
-  # ── Programs ──────────────────────────────────────────────────────────────
 
   /api/programs:
     get:
       tags: [Programs]
-      summary: List active programs with optional filters
-      description: Returns all ACTIVE programs. All query params are optional.
+      summary: List active programs
+      description: All filters are optional. Pagination is zero-based.
       parameters:
         - name: type
           in: query
-          description: Filter by program type
           schema:
             $ref: '#/components/schemas/ProgramType'
         - name: country
           in: query
-          description: Partial case-insensitive country match
+          description: Case-insensitive partial match; `%`, `_` and `\\` are treated literally.
           schema:
             type: string
-            example: germany
         - name: q
           in: query
-          description: Full-text search in title and description
+          description: Case-insensitive partial match in title or description.
           schema:
             type: string
-            example: research
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          description: |
+            `field,direction`, where field is `createdAt`, `deadline`, `title` or
+            `country`, and direction is `asc` or `desc`. Aliases
+            `created_at_desc` and `deadline_asc` are also accepted.
+          schema:
+            type: string
+            default: createdAt,desc
       responses:
         '200':
-          description: List of programs
+          description: Stable paginated response
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProgramDto'
+                $ref: '#/components/schemas/ProgramPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/programs/{id}:
     get:
@@ -185,16 +185,112 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProgramDto'
+                $ref: '#/components/schemas/ProgramResponse'
         '404':
           $ref: '#/components/responses/NotFound'
 
-  # ── Submissions ───────────────────────────────────────────────────────────
+  /api/programs/{id}/events:
+    post:
+      tags: [Programs]
+      summary: Record a view or outbound-link click
+      description: Public endpoint, limited to 120 events per minute per client IP.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramAnalyticsEventRequest'
+      responses:
+        '204':
+          description: Event recorded
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/users/me:
+    patch:
+      tags: [Users]
+      summary: Update the current user's name and/or password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/me/favorites:
+    get:
+      tags: [Users]
+      summary: List the current user's favorite programs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Favorites ordered by most recently added
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProgramResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/me/favorites/{programId}:
+    parameters:
+      - name: programId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    post:
+      tags: [Users]
+      summary: Add a favorite
+      description: Idempotent.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Favorite exists
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Users]
+      summary: Remove a favorite
+      description: Idempotent.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Favorite does not exist
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /api/submissions:
     post:
       tags: [Submissions]
-      summary: Submit a new program for review
+      summary: Submit a program for review
       security:
         - bearerAuth: []
       requestBody:
@@ -205,51 +301,102 @@ paths:
               $ref: '#/components/schemas/SubmissionRequest'
       responses:
         '201':
-          description: Submission created with PENDING status
+          description: Pending submission created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SubmissionDto'
+                $ref: '#/components/schemas/SubmissionResponse'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
   /api/submissions/my:
     get:
       tags: [Submissions]
-      summary: Get current user's submissions
+      summary: List the current user's submissions
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: User's submissions ordered by newest first
+          description: Submissions ordered newest first
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/SubmissionDto'
+                  $ref: '#/components/schemas/SubmissionResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  # ── Admin ─────────────────────────────────────────────────────────────────
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users and roles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users/{id}/role:
+    patch:
+      tags: [Admin]
+      summary: Change a user's role and revoke their refresh tokens
+      description: The final administrator cannot be demoted.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRoleRequest'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/admin/submissions:
     get:
       tags: [Admin]
-      summary: Get pending submission queue
+      summary: List pending submissions
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: All PENDING submissions ordered by newest first
+          description: Pending moderation queue
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/SubmissionDto'
+                  $ref: '#/components/schemas/SubmissionResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -258,7 +405,7 @@ paths:
   /api/admin/submissions/{id}:
     patch:
       tags: [Admin]
-      summary: Approve or reject a submission
+      summary: Approve or reject a pending submission
       security:
         - bearerAuth: []
       parameters:
@@ -269,25 +416,46 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ReviewSubmissionRequest'
-            example:
-              status: APPROVED
-              comment: Great submission, adding to catalog.
       responses:
         '200':
-          description: Updated submission
+          description: Reviewed submission
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SubmissionDto'
+                $ref: '#/components/schemas/SubmissionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /api/admin/analytics:
+    get:
+      tags: [Admin]
+      summary: Get platform and program engagement analytics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Totals and up to ten programs ranked by total engagement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAnalyticsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/admin/programs:
     post:
       tags: [Admin]
-      summary: Create a new program manually
+      summary: Create a program
       security:
         - bearerAuth: []
       requestBody:
@@ -298,18 +466,22 @@ paths:
               $ref: '#/components/schemas/ProgramRequest'
       responses:
         '201':
-          description: Created program
+          description: Program created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProgramDto'
+                $ref: '#/components/schemas/ProgramResponse'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/admin/programs/{id}:
     put:
       tags: [Admin]
-      summary: Edit an existing program
+      summary: Replace a program's editable fields
       security:
         - bearerAuth: []
       parameters:
@@ -322,11 +494,17 @@ paths:
               $ref: '#/components/schemas/ProgramRequest'
       responses:
         '200':
-          description: Updated program
+          description: Program updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProgramDto'
+                $ref: '#/components/schemas/ProgramResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -338,14 +516,15 @@ paths:
         - $ref: '#/components/parameters/IdPath'
       responses:
         '204':
-          description: Deleted
+          description: Program deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
-# ── Components ───────────────────────────────────────────────────────────────
-
 components:
-
   securitySchemes:
     bearerAuth:
       type: http
@@ -362,20 +541,20 @@ components:
         format: int64
 
   responses:
-    ValidationError:
-      description: Request body failed validation
+    BadRequest:
+      description: Invalid request or validation failure
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
     Unauthorized:
-      description: Missing or invalid JWT
+      description: Missing, invalid or expired credentials
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
     Forbidden:
-      description: Insufficient role (ADMIN required)
+      description: Insufficient role
       content:
         application/problem+json:
           schema:
@@ -387,33 +566,36 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
     Conflict:
-      description: Business rule conflict (e.g. email already in use)
+      description: Business invariant conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until retry is allowed
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
 
   schemas:
-
-    # ── Enums ────────────────────────────────────────────────────────────────
-
-    ProgramType:
-      type: string
-      enum: [INTERNSHIP, EXCHANGE, SCHOLARSHIP, OTHER]
-
-    ProgramStatus:
-      type: string
-      enum: [ACTIVE, INACTIVE, DRAFT]
-
-    SubmissionStatus:
-      type: string
-      enum: [PENDING, APPROVED, REJECTED]
-
     Role:
       type: string
       enum: [USER, ADMIN]
-
-    # ── Auth ─────────────────────────────────────────────────────────────────
+    ProgramType:
+      type: string
+      enum: [INTERNSHIP, EXCHANGE, SCHOLARSHIP, OTHER]
+    ProgramStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, DRAFT]
+    SubmissionStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
 
     RegisterRequest:
       type: object
@@ -422,13 +604,15 @@ components:
         email:
           type: string
           format: email
+          maxLength: 255
         name:
           type: string
-          minLength: 1
+          minLength: 2
+          maxLength: 100
         password:
           type: string
           minLength: 6
-
+          maxLength: 72
     LoginRequest:
       type: object
       required: [email, password]
@@ -438,38 +622,65 @@ components:
           format: email
         password:
           type: string
-
     RefreshRequest:
       type: object
       required: [refreshToken]
       properties:
         refreshToken:
           type: string
-
+          minLength: 1
     AuthResponse:
       type: object
+      required: [accessToken, refreshToken]
       properties:
         accessToken:
           type: string
-          description: JWT, valid for 15 minutes
         refreshToken:
           type: string
-          description: Opaque token, valid for 30 days
-
-    UserMeResponse:
+    UserResponse:
       type: object
+      required: [id, email, name, role]
       properties:
         id:
           type: integer
           format: int64
         email:
           type: string
+          format: email
         name:
           type: string
         role:
           $ref: '#/components/schemas/Role'
-
-    # ── Programs ─────────────────────────────────────────────────────────────
+    UpdateProfileRequest:
+      type: object
+      description: "`currentPassword` is required when `newPassword` is supplied."
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        currentPassword:
+          type: string
+          maxLength: 72
+        newPassword:
+          type: string
+          minLength: 6
+          maxLength: 72
+    AdminUserResponse:
+      allOf:
+        - $ref: '#/components/schemas/UserResponse'
+        - type: object
+          required: [createdAt]
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+    UpdateUserRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/Role'
 
     ProgramRequest:
       type: object
@@ -477,127 +688,192 @@ components:
       properties:
         title:
           type: string
+          minLength: 1
+          maxLength: 255
         description:
           type: string
+          minLength: 1
+          maxLength: 5000
         country:
           type: string
+          minLength: 1
+          maxLength: 100
         type:
           $ref: '#/components/schemas/ProgramType'
         deadline:
           type: string
           format: date
           nullable: true
+          description: Today or a future date.
         url:
           type: string
           format: uri
+          maxLength: 500
           nullable: true
-
-    ProgramDto:
+    ProgramResponse:
+      allOf:
+        - $ref: '#/components/schemas/ProgramRequest'
+        - type: object
+          required: [id, status, createdAt]
+          properties:
+            id:
+              type: integer
+              format: int64
+            status:
+              $ref: '#/components/schemas/ProgramStatus'
+            createdAt:
+              type: string
+              format: date-time
+    ProgramPage:
       type: object
+      required: [content, page]
       properties:
-        id:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgramResponse'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+    PageMetadata:
+      type: object
+      required: [size, number, totalElements, totalPages]
+      properties:
+        size:
+          type: integer
+        number:
+          type: integer
+        totalElements:
           type: integer
           format: int64
-        title:
-          type: string
-        description:
-          type: string
-        country:
-          type: string
+        totalPages:
+          type: integer
+    ProgramAnalyticsEventRequest:
+      type: object
+      required: [type]
+      properties:
         type:
-          $ref: '#/components/schemas/ProgramType'
-        deadline:
           type: string
-          format: date
-          nullable: true
-        url:
-          type: string
-          nullable: true
-        status:
-          $ref: '#/components/schemas/ProgramStatus'
-        createdAt:
-          type: string
-          format: date-time
-
-    # ── Submissions ───────────────────────────────────────────────────────────
+          enum: [VIEW, CLICK]
 
     SubmissionRequest:
-      type: object
-      required: [title, description, country, type]
-      properties:
-        title:
-          type: string
-        description:
-          type: string
-        country:
-          type: string
-        type:
-          $ref: '#/components/schemas/ProgramType'
-        deadline:
-          type: string
-          format: date
-          nullable: true
-        url:
-          type: string
-          format: uri
-          nullable: true
-
-    SubmissionDto:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        userId:
-          type: integer
-          format: int64
-        userName:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-        country:
-          type: string
-        type:
-          $ref: '#/components/schemas/ProgramType'
-        deadline:
-          type: string
-          format: date
-          nullable: true
-        url:
-          type: string
-          nullable: true
-        status:
-          $ref: '#/components/schemas/SubmissionStatus'
-        adminComment:
-          type: string
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-        reviewedAt:
-          type: string
-          format: date-time
-          nullable: true
-
+      allOf:
+        - $ref: '#/components/schemas/ProgramRequest'
+    SubmissionResponse:
+      allOf:
+        - $ref: '#/components/schemas/SubmissionRequest'
+        - type: object
+          required: [id, userId, userName, status, createdAt]
+          properties:
+            id:
+              type: integer
+              format: int64
+            userId:
+              type: integer
+              format: int64
+            userName:
+              type: string
+            status:
+              $ref: '#/components/schemas/SubmissionStatus'
+            adminComment:
+              type: string
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            reviewedAt:
+              type: string
+              format: date-time
+              nullable: true
     ReviewSubmissionRequest:
       type: object
       required: [status]
       properties:
         status:
-          $ref: '#/components/schemas/SubmissionStatus'
+          type: string
+          enum: [APPROVED, REJECTED]
         comment:
           type: string
           nullable: true
 
-    # ── Error ─────────────────────────────────────────────────────────────────
+    AdminAnalyticsResponse:
+      type: object
+      required: [users, programs, submissions, favorites, views, clicks, topPrograms, dailyEngagement]
+      properties:
+        users:
+          type: integer
+          format: int64
+        programs:
+          type: integer
+          format: int64
+        submissions:
+          type: integer
+          format: int64
+        favorites:
+          type: integer
+          format: int64
+        views:
+          type: integer
+          format: int64
+        clicks:
+          type: integer
+          format: int64
+        topPrograms:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/TopProgramAnalyticsResponse'
+        dailyEngagement:
+          type: array
+          minItems: 30
+          maxItems: 30
+          description: Platform-wide VIEW and CLICK totals for each of the last 30 calendar days.
+          items:
+            $ref: '#/components/schemas/DailyEngagementResponse'
+    TopProgramAnalyticsResponse:
+      type: object
+      required: [id, title, views, clicks, favorites, totalEngagement]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        views:
+          type: integer
+          format: int64
+        clicks:
+          type: integer
+          format: int64
+        favorites:
+          type: integer
+          format: int64
+        totalEngagement:
+          type: integer
+          format: int64
+
+    DailyEngagementResponse:
+      type: object
+      required: [date, views, clicks, totalEngagement]
+      properties:
+        date:
+          type: string
+          format: date
+        views:
+          type: integer
+          format: int64
+        clicks:
+          type: integer
+          format: int64
+        totalEngagement:
+          type: integer
+          format: int64
 
     ProblemDetail:
       type: object
       properties:
         type:
           type: string
+          format: uri
         title:
           type: string
         status:
@@ -606,3 +882,8 @@ components:
           type: string
         instance:
           type: string
+          format: uri
+        errors:
+          type: object
+          additionalProperties:
+            type: string
