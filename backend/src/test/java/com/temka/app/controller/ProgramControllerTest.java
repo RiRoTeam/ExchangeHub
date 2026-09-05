@@ -82,4 +82,14 @@ class ProgramControllerTest {
         mockMvc.perform(get("/api/programs/99"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void unexpectedException_returnsProblemDetail500() throws Exception {
+        when(programService.list(null, null, null)).thenThrow(new RuntimeException("database unavailable"));
+
+        mockMvc.perform(get("/api/programs"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.detail").value("Internal server error"));
+    }
 }

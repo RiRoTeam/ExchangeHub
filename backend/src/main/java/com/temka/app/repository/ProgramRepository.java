@@ -15,9 +15,11 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
             SELECT p FROM Program p
             WHERE p.status = :status
               AND (:type IS NULL OR p.type = :type)
-              AND (:country IS NULL OR LOWER(p.country) LIKE LOWER(CONCAT('%', :country, '%')))
-              AND (:q IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :q, '%'))
-                             OR LOWER(p.description) LIKE LOWER(CONCAT('%', :q, '%')))
+              AND (CAST(:country AS string) IS NULL
+                   OR LOWER(p.country) LIKE LOWER(CONCAT('%', CAST(:country AS string), '%')))
+              AND (CAST(:q AS string) IS NULL
+                   OR LOWER(p.title) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%'))
+                   OR LOWER(p.description) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%')))
             ORDER BY p.createdAt DESC
             """)
     List<Program> findFiltered(
