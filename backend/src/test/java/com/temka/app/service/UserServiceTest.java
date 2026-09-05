@@ -2,6 +2,7 @@ package com.temka.app.service;
 
 import com.temka.app.entity.Role;
 import com.temka.app.entity.User;
+import com.temka.app.dto.UpdateProfileRequest;
 import com.temka.app.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -115,6 +116,26 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.changeRole(99L, Role.ADMIN))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("User not found: 99");
+    }
+
+    @Test
+    void updateProfile_usesFreshLockedUserInsteadOfStalePrincipalRole() {
+        var stalePrincipal = user(7L, "person@example.com", Role.ADMIN);
+        var persistedUser = user(7L, "person@example.com", Role.USER);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(persistedUser));
+
+        var result = userService.updateProfile(
+                stalePrincipal,
+                new UpdateProfileRequest("Fresh Name", null, null)
+        );
+
+        assertThat(result.role()).isEqualTo(Role.USER);
+        assertThat(result.name()).isEqualTo("Fresh Name");
+        assertThat(persistedUser.getName()).isEqualTo("Fresh Name");
+        assertThat(stalePrincipal.getName()).isEqualTo("Person");
+        assertThat(stalePrincipal.getRole()).isEqualTo(Role.ADMIN);
+        verify(userRepository).save(persistedUser);
+        verify(userRepository, never()).save(stalePrincipal);
     }
 
     private static User user(Long id, String email, Role role) {

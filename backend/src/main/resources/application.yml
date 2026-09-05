@@ -17,10 +17,13 @@ spring:
 
 server:
   port: 8080
+  # Let Tomcat resolve X-Forwarded-* only when the immediate peer is one of its
+  # trusted internal proxies (for example the compose nginx container).
+  forward-headers-strategy: native
 
 app:
   jwt:
-    secret: ${JWT_SECRET:change-me-in-production-must-be-at-least-32-chars}
+    secret: ${JWT_SECRET}
     expiration-ms: 900000           # 15 minutes
     refresh-expiration-ms: 2592000000 # 30 days
   bootstrap-admin:

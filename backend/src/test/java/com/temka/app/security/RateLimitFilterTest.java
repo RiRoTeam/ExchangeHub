@@ -6,6 +6,9 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicLong;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RateLimitFilterTest {
@@ -94,12 +97,57 @@ class RateLimitFilterTest {
         assertThat(response.getStatus()).isNotEqualTo(429);
     }
 
+    @Test
+    void forwardedHeaderCannotBypassLimitBeforeTrustedProxyNormalization() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            doRequest("203.0.113.10", "/api/auth/login", "198.51.100." + i);
+        }
+
+        var response = doRequest(
+                "203.0.113.10", "/api/auth/login", "198.51.100.99");
+
+        assertThat(response.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void idleClientBucketsAreEvicted() throws Exception {
+        var ticker = new AtomicLong();
+        filter = new RateLimitFilter(3, 2, 4, 100, Duration.ofNanos(10), ticker::get);
+
+        doRequest("10.5.0.1", "/api/auth/login");
+        assertThat(filter.bucketCount()).isEqualTo(1);
+
+        ticker.set(11);
+        doRequest("10.5.0.2", "/api/auth/login");
+
+        assertThat(filter.bucketCount()).isEqualTo(1);
+    }
+
+    @Test
+    void clientBucketCacheIsBounded() throws Exception {
+        filter = new RateLimitFilter(3, 2, 4, 3, Duration.ofMinutes(10), () -> 0L);
+
+        for (int i = 0; i < 10; i++) {
+            doRequest("10.6.0." + i, "/api/auth/login");
+        }
+
+        assertThat(filter.bucketCount()).isLessThanOrEqualTo(3);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private MockHttpServletResponse doRequest(String ip, String path) throws Exception {
+        return doRequest(ip, path, null);
+    }
+
+    private MockHttpServletResponse doRequest(String ip, String path, String forwardedFor)
+            throws Exception {
         var request  = new MockHttpServletRequest("POST", path);
         request.setServletPath(path);
         request.setRemoteAddr(ip);
+        if (forwardedFor != null) {
+            request.addHeader("X-Forwarded-For", forwardedFor);
+        }
         var response = new MockHttpServletResponse();
         var chain    = new MockFilterChain();
         filter.doFilter(request, response, chain);

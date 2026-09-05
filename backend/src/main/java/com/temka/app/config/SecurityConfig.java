@@ -2,12 +2,13 @@ package com.temka.app.config;
 
 import com.temka.app.security.JwtAuthFilter;
 import com.temka.app.security.RateLimitFilter;
+import com.temka.app.security.SecurityProblemWriter;
 import com.temka.app.security.UserDetailsServiceImpl;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -58,7 +59,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/me").authenticated()
                         .anyRequest().authenticated()
                 )
-                .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedEntryPoint()))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint(unauthorizedEntryPoint())
+                        .accessDeniedHandler((request, response, ex) ->
+                                SecurityProblemWriter.write(
+                                        response, HttpStatus.FORBIDDEN, "Access denied")))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
@@ -86,6 +91,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, ex) ->
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                SecurityProblemWriter.write(
+                        response, HttpStatus.UNAUTHORIZED, "Authentication is required");
     }
 }

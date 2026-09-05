@@ -56,7 +56,14 @@ public class UserService {
     }
 
     @Transactional
-    public UserMeResponse updateProfile(User user, UpdateProfileRequest request) {
+    public UserMeResponse updateProfile(User principal, UpdateProfileRequest request) {
+        // The authentication principal is a snapshot loaded when the request was
+        // authenticated. Reload and lock the row so a concurrent role change
+        // cannot be overwritten by merging that stale snapshot.
+        var user = userRepository.findByIdForUpdate(principal.getId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "User not found: " + principal.getId()));
+
         if (request.newPassword() != null) {
             if (request.currentPassword() == null ||
                     !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {

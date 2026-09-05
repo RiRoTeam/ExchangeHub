@@ -50,4 +50,30 @@ class DeadlineValidationTest {
                 .extracting(violation -> violation.getPropertyPath().toString())
                 .containsExactly("deadline");
     }
+
+    @Test
+    void requestsRejectValuesLongerThanDatabaseColumns() {
+        var program = new ProgramRequest(
+                "Program", "Description", "c".repeat(101), ProgramType.EXCHANGE,
+                LocalDate.now(), "https://example.com/" + "x".repeat(500));
+        var submission = new SubmissionRequest(
+                "Program", "Description", "c".repeat(101), ProgramType.EXCHANGE,
+                LocalDate.now(), "https://example.com/" + "x".repeat(500));
+        var register = new RegisterRequest(
+                "a".repeat(244) + "@example.com", "Person", "secret123");
+        var profile = new UpdateProfileRequest(null, null, "p".repeat(73));
+
+        assertThat(validator.validate(program))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .contains("country", "url");
+        assertThat(validator.validate(submission))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .contains("country", "url");
+        assertThat(validator.validate(register))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .contains("email");
+        assertThat(validator.validate(profile))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .contains("newPassword");
+    }
 }

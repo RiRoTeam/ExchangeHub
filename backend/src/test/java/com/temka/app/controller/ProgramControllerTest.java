@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -82,6 +83,28 @@ class ProgramControllerTest {
     }
 
     @Test
+    void list_withInvalidType_returnsProblemDetail400() throws Exception {
+        mockMvc.perform(get("/api/programs").param("type", "INVALID"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.detail").value(
+                        "Request parameter 'type' has an unsupported value"));
+
+        verify(programService, never()).list(any(), any(), any(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void list_withNonNumericPage_returnsProblemDetail400() throws Exception {
+        mockMvc.perform(get("/api/programs").param("page", "first"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.detail").value(
+                        "Request parameter 'page' has an unsupported value"));
+
+        verify(programService, never()).list(any(), any(), any(), anyInt(), anyInt(), any());
+    }
+
+    @Test
     void getById_returns200() throws Exception {
         when(programService.getById(1L)).thenReturn(sampleDto());
 
@@ -131,6 +154,24 @@ class ProgramControllerTest {
                         "Request body is malformed or contains an unsupported value"));
 
         verify(programAnalyticsService, never()).record(anyLong(), any());
+    }
+
+    @Test
+    void recordEvent_withUnsupportedContentTypeReturns415() throws Exception {
+        mockMvc.perform(post("/api/programs/1/events")
+                        .contentType("text/plain")
+                        .content("VIEW"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
+
+        verify(programAnalyticsService, never()).record(anyLong(), any());
+    }
+
+    @Test
+    void unsupportedMethodKeepsMvc405InsteadOfBecoming500() throws Exception {
+        mockMvc.perform(put("/api/programs"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"));
     }
 
     @Test

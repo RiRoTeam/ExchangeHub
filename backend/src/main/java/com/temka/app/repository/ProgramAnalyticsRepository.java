@@ -4,8 +4,10 @@ import com.temka.app.entity.ProgramAnalytics;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDate;
 
 public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalytics, Long> {
 
@@ -32,6 +34,37 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
                 updated_at = CURRENT_TIMESTAMP
             """, nativeQuery = true)
     int incrementClicks(long programId);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO program_analytics_daily
+                (program_id, event_date, view_count, click_count, updated_at)
+            SELECT id, CURRENT_DATE, 1, 0, CURRENT_TIMESTAMP
+            FROM programs
+            WHERE id = :programId
+            ON CONFLICT (program_id, event_date) DO UPDATE
+            SET view_count = program_analytics_daily.view_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            """, nativeQuery = true)
+    int incrementDailyViews(long programId);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO program_analytics_daily
+                (program_id, event_date, view_count, click_count, updated_at)
+            SELECT id, CURRENT_DATE, 0, 1, CURRENT_TIMESTAMP
+            FROM programs
+            WHERE id = :programId
+            ON CONFLICT (program_id, event_date) DO UPDATE
+            SET click_count = program_analytics_daily.click_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            """, nativeQuery = true)
+    int incrementDailyClicks(long programId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM program_analytics_daily", nativeQuery = true)
+    void deleteDailyAnalytics();
 
     @Query(value = """
             SELECT
@@ -64,6 +97,22 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
             """, nativeQuery = true)
     List<TopProgramProjection> findTopPrograms(int limit);
 
+    @Query(value = """
+            SELECT series.day::date AS eventDate,
+                   COALESCE(SUM(d.view_count), 0) AS views,
+                   COALESCE(SUM(d.click_count), 0) AS clicks
+            FROM generate_series(
+                CURRENT_DATE - 29,
+                CURRENT_DATE,
+                INTERVAL '1 day'
+            ) AS series(day)
+            LEFT JOIN program_analytics_daily d
+                ON d.event_date = series.day::date
+            GROUP BY series.day
+            ORDER BY series.day
+            """, nativeQuery = true)
+    List<DailyEngagementProjection> findDailyEngagement();
+
     interface AnalyticsTotalsProjection {
         long getUsers();
 
@@ -90,5 +139,13 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
         long getFavorites();
 
         long getTotalEngagement();
+    }
+
+    interface DailyEngagementProjection {
+        LocalDate getEventDate();
+
+        long getViews();
+
+        long getClicks();
     }
 }

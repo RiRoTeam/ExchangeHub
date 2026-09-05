@@ -17,6 +17,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 class SecurityRulesTest extends AbstractIntegrationTest {
 
@@ -88,14 +90,39 @@ class SecurityRulesTest extends AbstractIntegrationTest {
     @Test
     void protectedEndpoint_withoutToken_returns401() throws Exception {
         mvc.perform(get("/api/admin/submissions"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Authentication is required"));
     }
 
     @Test
     void invalidToken_returns401() throws Exception {
         mvc.perform(get("/api/admin/submissions")
                         .header("Authorization", "Bearer garbage.token.value"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Invalid or expired token"));
+    }
+
+    @Test
+    void blankBearerToken_returnsProblemDetail401() throws Exception {
+        mvc.perform(get("/api/admin/submissions")
+                        .header("Authorization", "Bearer "))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Invalid or expired token"));
+    }
+
+    @Test
+    void tokenForDeletedUser_returnsProblemDetail401() throws Exception {
+        var deletedUser = userRepository.findByEmail("user@sec.com").orElseThrow();
+        userRepository.delete(deletedUser);
+
+        mvc.perform(get("/api/admin/submissions")
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Invalid or expired token"));
     }
 
     // ── USER токен → 403 на admin-роуты ──────────────────────────────────────
@@ -104,7 +131,9 @@ class SecurityRulesTest extends AbstractIntegrationTest {
     void userToken_onAdminEndpoint_returns403() throws Exception {
         mvc.perform(get("/api/admin/submissions")
                         .header("Authorization", "Bearer " + userToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Access denied"));
     }
 
     @Test

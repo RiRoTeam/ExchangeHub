@@ -161,7 +161,8 @@ class AdminControllerTest {
                         12, 4, 7, 9, 100, 25,
                         List.of(new TopProgramAnalyticsResponse(
                                 1L, "Popular program", 80, 20, 5, 105
-                        ))
+                        )),
+                        List.of()
                 )
         );
 
