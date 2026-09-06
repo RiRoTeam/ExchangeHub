@@ -8,7 +8,12 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { authenticate, fetchCurrentUser, refreshAuthTokens } from "../../entities/auth/api";
+import {
+  authenticate,
+  fetchCurrentUser,
+  refreshAuthTokens,
+  revokeRefreshToken
+} from "../../entities/auth/api";
 import { AdminAccessRequiredError, toFriendlyAuthError } from "../../entities/auth/errors";
 import {
   clearStoredSession,
@@ -29,8 +34,10 @@ type AuthContextValue = {
   status: AuthStatus;
   session: Session | null;
   signIn: (payload: SignInPayload) => Promise<Session>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   refreshSession: () => Promise<Session | null>;
+  /** Обновляет данные пользователя в сессии после правки профиля. */
+  applyUpdatedUser: (user: Session["user"]) => void;
 };
 
 type AuthProviderProps = {
@@ -244,8 +251,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  function signOut() {
+  async function signOut() {
+    const currentSession = sessionRef.current ?? session;
+
+    // Локальное состояние чистим в любом случае: если сеть недоступна, человек
+    // всё равно должен выйти. Токен тогда доживёт до истечения на сервере.
     resetSession();
+
+    if (!currentSession) {
+      return;
+    }
+
+    try {
+      await revokeRefreshToken(currentSession.refreshToken);
+    } catch {
+      // Ничего не показываем: выход с точки зрения пользователя уже произошёл.
+    }
+  }
+
+  function applyUpdatedUser(user: Session["user"]) {
+    const currentSession = sessionRef.current;
+
+    if (!currentSession) {
+      return;
+    }
+
+    applySession({ ...currentSession, user });
   }
 
   return (
@@ -255,7 +286,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         session,
         signIn,
         signOut,
-        refreshSession
+        refreshSession,
+        applyUpdatedUser
       }}
     >
       {children}

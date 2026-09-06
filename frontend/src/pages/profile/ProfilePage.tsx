@@ -1,5 +1,6 @@
 import { useAuth } from "../../app/providers/AuthProvider";
 import { useRouter } from "../../app/router/RouterProvider";
+import { EditProfileForm } from "../../features/profile/edit-profile/EditProfileForm";
 import { AppShell } from "../../widgets/app-shell/AppShell";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
@@ -23,7 +24,9 @@ export function ProfilePage() {
   }
 
   function handleLogout() {
-    signOut();
+    // Уводим сразу: signOut чистит локальное состояние синхронно, а отзыв
+    // refresh-токена на сервере дожидаться незачем.
+    void signOut();
     navigate("/login", { replace: true });
   }
 
@@ -81,6 +84,10 @@ export function ProfilePage() {
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="page-section">
+        <EditProfileForm />
       </section>
     </AppShell>
   );

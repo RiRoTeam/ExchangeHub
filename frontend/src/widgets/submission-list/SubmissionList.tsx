@@ -1,3 +1,4 @@
+import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Submission, SubmissionStatus } from "../../shared/types/submission";
 
 type SubmissionListProps = {
@@ -36,7 +37,10 @@ export function SubmissionList({
 
   return (
     <section aria-label="Submissions" className="program-list">
-      {submissions.map((submission) => (
+      {submissions.map((submission) => {
+        const externalUrl = safeExternalUrl(submission.url);
+
+        return (
         <article className="program-list__card" key={submission.id}>
           <div className="submission-card__header">
             <h3>{submission.title}</h3>
@@ -72,10 +76,10 @@ export function SubmissionList({
             </p>
           ) : null}
 
-          {submission.url ? (
+          {externalUrl ? (
             <a
               className="secondary-button program-list__link"
-              href={submission.url}
+              href={externalUrl}
               rel="noreferrer"
               target="_blank"
             >
@@ -85,7 +89,8 @@ export function SubmissionList({
 
           {renderActions ? <div className="action-strip">{renderActions(submission)}</div> : null}
         </article>
-      ))}
+        );
+      })}
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { programDetailPath } from "../../app/router/routes";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
 import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
+import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
 
 type ProgramListProps = {
@@ -33,6 +34,7 @@ export function ProgramList({
     <section aria-label="Programs" className="program-list">
       {programs.map((program) => {
         const isDeadlinePassed = getDeadlineState(program.deadline).kind === "passed";
+        const externalUrl = safeExternalUrl(program.url);
 
         return (
           <article
@@ -66,10 +68,10 @@ export function ProgramList({
 
             <p>{program.description}</p>
 
-            {program.url ? (
+            {externalUrl ? (
               <a
                 className="secondary-button program-list__link"
-                href={program.url}
+                href={externalUrl}
                 rel="noreferrer"
                 target="_blank"
               >
