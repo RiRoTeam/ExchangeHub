@@ -45,6 +45,11 @@ export function refreshAuthTokens(refreshToken: string) {
   });
 }
 
+/** POST /api/auth/logout — отзывает refresh-токен на сервере. */
+export function revokeRefreshToken(refreshToken: string) {
+  return postJson<void>("/auth/logout", { refreshToken });
+}
+
 export function fetchCurrentUser(accessToken: string) {
   return requestJson<UserProfile>("/auth/me", {
     headers: {

@@ -5,6 +5,7 @@ import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/T
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
 import { ApiError } from "../../shared/api/http";
 import { toFriendlyApiError } from "../../shared/api/problem";
+import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
 import { useRouter } from "../../app/router/RouterProvider";
 import { AppShell } from "../../widgets/app-shell/AppShell";
@@ -87,6 +88,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
   }, [parsedId, reloadToken]);
 
   const program = state.kind === "loaded" ? state.program : null;
+  const externalUrl = safeExternalUrl(program?.url);
 
   return (
     <AppShell
@@ -183,10 +185,10 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
             <p>{program.description}</p>
           </section>
 
-          {program.url ? (
+          {externalUrl ? (
             <a
               className="primary-button program-detail__link"
-              href={program.url}
+              href={externalUrl}
               rel="noreferrer"
               target="_blank"
             >
