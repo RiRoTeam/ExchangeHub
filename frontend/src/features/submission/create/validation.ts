@@ -1,4 +1,4 @@
-import type { ProgramType } from "../../../shared/types/program";
+import type { Program, ProgramType } from "../../../shared/types/program";
 import type { ProgramDraft } from "../../../shared/types/submission";
 import { readFieldErrors, toFriendlyApiError } from "../../../shared/api/problem";
 
@@ -149,4 +149,17 @@ export function readServerFieldErrors(error: unknown): ProgramDraftFieldErrors {
 
 export function toFriendlySubmitError(error: unknown) {
   return toFriendlyApiError(error, "We couldn’t send this program. Please try again.");
+}
+
+/** Программа из API → значения формы для режима редактирования. */
+export function toFormValues(program: Program): ProgramDraftFormValues {
+  return {
+    title: program.title,
+    description: program.description,
+    country: program.country,
+    type: program.type,
+    // input[type=date] понимает только YYYY-MM-DD.
+    deadline: program.deadline ? program.deadline.slice(0, 10) : "",
+    url: program.url ?? ""
+  };
 }

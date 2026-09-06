@@ -11,6 +11,7 @@ type ProgramListProps = {
   emptyMessage?: string;
   /** В админском каталоге избранное не нужно — там другие задачи. */
   showFavoriteToggle?: boolean;
+  renderActions?: (program: Program) => React.ReactNode;
 };
 
 function formatProgramType(type: Program["type"]) {
@@ -24,7 +25,8 @@ function formatProgramType(type: Program["type"]) {
 export function ProgramList({
   programs,
   emptyMessage = "Programs will appear here once the API is connected.",
-  showFavoriteToggle = true
+  showFavoriteToggle = true,
+  renderActions
 }: ProgramListProps) {
   if (!programs.length) {
     return <div className="placeholder-card">{emptyMessage}</div>;
@@ -67,6 +69,10 @@ export function ProgramList({
             </div>
 
             <p>{program.description}</p>
+
+            {renderActions ? (
+              <div className="program-list__admin-actions">{renderActions(program)}</div>
+            ) : null}
 
             {externalUrl ? (
               <a

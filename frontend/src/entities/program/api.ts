@@ -96,3 +96,13 @@ export function getProgramById(id: number, signal?: AbortSignal) {
 export function createProgram(draft: ProgramDraft) {
   return authorizedJsonBody<Program>("POST", "/admin/programs", draft);
 }
+
+/** PUT /api/admin/programs/{id} — отредактировать программу (только ADMIN). */
+export function updateProgram(id: number, draft: ProgramDraft) {
+  return authorizedJsonBody<Program>("PUT", `/admin/programs/${id}`, draft);
+}
+
+/** DELETE /api/admin/programs/{id} — удалить программу (только ADMIN). */
+export function deleteProgram(id: number) {
+  return authorizedJsonBody<void>("DELETE", `/admin/programs/${id}`);
+}
