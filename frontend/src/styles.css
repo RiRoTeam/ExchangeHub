@@ -940,3 +940,60 @@ a {
   padding: 0 4px;
   color: var(--color-text-soft);
 }
+
+/* ── Очередь модерации ─────────────────────────────────────────────────────── */
+
+.programs-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.submission-card__actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.review-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.review-actions__reject {
+  display: grid;
+  gap: 14px;
+}
+
+.review-actions__comment {
+  min-height: 96px;
+}
+
+.review-page__decision {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(80, 132, 94, 0.3);
+  border-radius: 18px;
+  background: rgba(80, 132, 94, 0.1);
+  color: var(--color-success);
+}
+
+/* ── Админские действия над программой ─────────────────────────────────────── */
+
+.program-list__admin-actions,
+.program-admin-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.program-list__admin-actions {
+  margin: 14px 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.program-admin-actions__question {
+  align-self: center;
+  color: var(--color-text-soft);
+}

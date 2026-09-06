@@ -87,7 +87,9 @@ export function SubmissionList({
             </a>
           ) : null}
 
-          {renderActions ? <div className="action-strip">{renderActions(submission)}</div> : null}
+          {renderActions ? (
+            <div className="submission-card__actions">{renderActions(submission)}</div>
+          ) : null}
         </article>
         );
       })}
