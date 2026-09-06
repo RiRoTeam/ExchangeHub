@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getProgramById } from "../../entities/program/api";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
+import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
 import { ApiError } from "../../shared/api/http";
 import { toFriendlyApiError } from "../../shared/api/problem";
@@ -137,6 +138,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
           <header className="program-detail__header">
             <h2>{program.title}</h2>
             <div className="program-badges">
+              <ToggleFavoriteButton program={program} size="large" />
               <ProgramBadges program={program} />
               {/* ACTIVE не показываем: каталог отдаёт только активные программы,
                   так что плашка была бы на каждой карточке и ничего не значила.

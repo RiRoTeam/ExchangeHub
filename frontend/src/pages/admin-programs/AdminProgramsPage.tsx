@@ -11,7 +11,7 @@ export function AdminProgramsPage() {
       navigation={<AdminTabs currentRoute="adminPrograms" />}
       aside={<FilterSidebar />}
     >
-      <ProgramList programs={[]} />
+      <ProgramList programs={[]} showFavoriteToggle={false} />
     </AppShell>
   );
 }
