@@ -2,36 +2,38 @@ import { authorizedJsonBody, requestJson } from "../../shared/api/http";
 import type { Program, ProgramFilters } from "../../shared/types/program";
 import type { ProgramDraft } from "../../shared/types/submission";
 
-type SpringSort = {
-  empty: boolean;
-  sorted: boolean;
-  unsorted: boolean;
-};
-
-type SpringPageable = {
-  pageNumber: number;
-  pageSize: number;
-  sort: SpringSort;
-  offset: number;
-  paged: boolean;
-  unpaged: boolean;
-};
-
-export type SpringPage<T> = {
+/**
+ * Конверт страницы, который отдаёт Spring при
+ * PageSerializationMode.VIA_DTO (см. PaginationConfig на бэке):
+ * метаданные лежат во вложенном `page`, а не в корне ответа.
+ */
+type SpringPageEnvelope<T> = {
   content: T[];
-  pageable: SpringPageable;
-  last: boolean;
+  page?: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
+};
+
+/** Нормализованная страница — интерфейс не знает про форму конверта Spring. */
+export type ProgramPage = {
+  programs: Program[];
+  page: number;
+  size: number;
   totalElements: number;
   totalPages: number;
-  size: number;
-  number: number;
-  sort: SpringSort;
-  first: boolean;
-  numberOfElements: number;
-  empty: boolean;
 };
 
-function toSearchParams(filters: ProgramFilters) {
+export type ProgramPageRequest = {
+  page?: number;
+  size?: number;
+};
+
+export const PROGRAMS_PAGE_SIZE = 12;
+
+function toSearchParams(filters: ProgramFilters, pagination: ProgramPageRequest) {
   const searchParams = new URLSearchParams();
 
   if (filters.type) {
@@ -46,16 +48,43 @@ function toSearchParams(filters: ProgramFilters) {
     searchParams.set("q", filters.query.trim());
   }
 
+  searchParams.set("page", String(Math.max(pagination.page ?? 0, 0)));
+  searchParams.set("size", String(pagination.size ?? PROGRAMS_PAGE_SIZE));
+
   return searchParams;
 }
 
-export async function listPrograms(filters: ProgramFilters, signal?: AbortSignal) {
-  const searchParams = toSearchParams(filters);
-  const query = searchParams.toString();
-  const path = query ? `/programs?${query}` : "/programs";
+function toProgramPage(envelope: SpringPageEnvelope<Program>): ProgramPage {
+  const programs = envelope.content ?? [];
+  // Подстраховка на случай, если режим сериализации на бэке переключат
+  // обратно на плоский: лучше показать одну страницу, чем NaN в счётчике.
+  const meta = envelope.page ?? {
+    size: programs.length,
+    number: 0,
+    totalElements: programs.length,
+    totalPages: programs.length ? 1 : 0
+  };
 
-  const page = await requestJson<SpringPage<Program>>(path, { signal });
-  return page.content;
+  return {
+    programs,
+    page: meta.number,
+    size: meta.size,
+    totalElements: meta.totalElements,
+    totalPages: meta.totalPages
+  };
+}
+
+export async function listPrograms(
+  filters: ProgramFilters,
+  pagination: ProgramPageRequest = {},
+  signal?: AbortSignal
+) {
+  const query = toSearchParams(filters, pagination).toString();
+  const envelope = await requestJson<SpringPageEnvelope<Program>>(`/programs?${query}`, {
+    signal
+  });
+
+  return toProgramPage(envelope);
 }
 
 /** GET /api/programs/{id} — публичная карточка программы. */

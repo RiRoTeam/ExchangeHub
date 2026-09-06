@@ -875,3 +875,68 @@ a {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* ── Пагинатор ─────────────────────────────────────────────────────────────── */
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.pagination__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pagination__page,
+.pagination__step {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.pagination__page {
+  min-width: 40px;
+  padding: 0 10px;
+}
+
+.pagination__page:hover:not(:disabled),
+.pagination__step:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.pagination__page--active,
+.pagination__page--active:hover:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.pagination__page:disabled,
+.pagination__step:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pagination__gap {
+  padding: 0 4px;
+  color: var(--color-text-soft);
+}
