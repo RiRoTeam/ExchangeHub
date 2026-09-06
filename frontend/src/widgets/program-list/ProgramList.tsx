@@ -1,12 +1,15 @@
 import { AppLink } from "../../app/router/AppLink";
 import { programDetailPath } from "../../app/router/routes";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
+import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
 import type { Program } from "../../shared/types/program";
 
 type ProgramListProps = {
   programs: Program[];
   emptyMessage?: string;
+  /** В админском каталоге избранное не нужно — там другие задачи. */
+  showFavoriteToggle?: boolean;
 };
 
 function formatProgramType(type: Program["type"]) {
@@ -19,7 +22,8 @@ function formatProgramType(type: Program["type"]) {
 
 export function ProgramList({
   programs,
-  emptyMessage = "Programs will appear here once the API is connected."
+  emptyMessage = "Programs will appear here once the API is connected.",
+  showFavoriteToggle = true
 }: ProgramListProps) {
   if (!programs.length) {
     return <div className="placeholder-card">{emptyMessage}</div>;
@@ -41,7 +45,10 @@ export function ProgramList({
                   {program.title}
                 </AppLink>
               </h2>
-              <ProgramBadges program={program} />
+              <div className="program-list__actions">
+                <ProgramBadges program={program} />
+                {showFavoriteToggle ? <ToggleFavoriteButton program={program} /> : null}
+              </div>
             </div>
 
             <div className="program-list__meta">
