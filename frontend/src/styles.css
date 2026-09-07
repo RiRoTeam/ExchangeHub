@@ -997,3 +997,252 @@ a {
   align-self: center;
   color: var(--color-text-soft);
 }
+
+/* ── Управление ролями ─────────────────────────────────────────────────────── */
+
+.user-table__search {
+  max-width: 420px;
+  margin-bottom: 18px;
+}
+
+.user-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-list__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.user-list__identity p {
+  margin: 0;
+}
+
+.user-list__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.user-list__you {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-soft);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.user-list__email,
+.user-list__joined {
+  color: var(--color-text-soft);
+  font-size: 0.92rem;
+}
+
+.role-control {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.role-control__confirm {
+  display: grid;
+  gap: 10px;
+  max-width: 320px;
+}
+
+.role-control__question {
+  margin: 0;
+  color: var(--color-text-soft);
+  line-height: 1.5;
+}
+
+.role-control__self {
+  color: var(--color-text-soft);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .user-list__row {
+    grid-template-columns: 1fr;
+  }
+
+  .role-control {
+    justify-items: start;
+  }
+}
+
+/* ── Дашборд аналитики ─────────────────────────────────────────────────────── */
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.kpi-tile {
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.kpi-tile__label {
+  margin: 0 0 6px;
+  color: var(--color-text-soft);
+  font-size: 0.92rem;
+}
+
+.kpi-tile__value {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.analytics-section__title {
+  margin: 0 0 14px;
+}
+
+.chart {
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.chart__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-soft);
+}
+
+.chart__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.chart__toggle {
+  min-height: 40px;
+}
+
+.chart__figure {
+  margin: 0;
+}
+
+.chart__svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart__grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.chart__crosshair {
+  stroke: var(--color-text-soft);
+  stroke-width: 1;
+}
+
+.chart__tick,
+.chart__end-label {
+  fill: var(--color-text-soft);
+  font-size: 12px;
+}
+
+.chart__end-label {
+  fill: var(--color-text);
+  font-weight: 700;
+}
+
+.chart__tooltip {
+  margin-top: 10px;
+  min-height: 22px;
+  color: var(--color-text-soft);
+}
+
+.chart__table-wrapper {
+  overflow-x: auto;
+}
+
+.chart__table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.chart__caption {
+  margin-bottom: 10px;
+  color: var(--color-text-soft);
+  text-align: left;
+}
+
+.chart__table th,
+.chart__table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chart__table thead th {
+  color: var(--color-text-soft);
+  font-weight: 400;
+}
+
+.chart__table td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-programs th[scope="row"] {
+  position: relative;
+  min-width: 220px;
+  padding-bottom: 18px;
+  font-weight: 400;
+}
+
+.top-programs__title {
+  display: block;
+}
+
+.top-programs__bar {
+  position: absolute;
+  left: 12px;
+  bottom: 8px;
+  height: 6px;
+  border-radius: 0 4px 4px 0;
+  background: #2a78d6;
+}
+
+.top-programs__total {
+  font-weight: 700;
+}
