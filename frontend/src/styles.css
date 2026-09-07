@@ -323,6 +323,9 @@ a {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 24px;
+  /* Без этого колонки грида растягиваются по самой высокой, и панель
+     фильтров вытягивается на всю длину списка программ. */
+  align-items: start;
 }
 
 .page-shell__aside,
@@ -1218,8 +1221,21 @@ a {
   font-weight: 400;
 }
 
+/* Первая колонка текстовая, остальные числовые: заголовок обязан стоять
+   над своими числами, иначе шапка «плывёт» относительно столбцов. */
+.chart__table thead th:not(:first-child),
 .chart__table td {
   text-align: right;
+}
+
+/* Числовые колонки ужимаем по содержимому, чтобы они не растягивались
+   на всю ширину и число стояло у своего заголовка. */
+.chart__table thead th:not(:first-child) {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.chart__table td {
   font-variant-numeric: tabular-nums;
 }
 
