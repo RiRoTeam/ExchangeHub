@@ -3,6 +3,7 @@ import { programDetailPath } from "../../app/router/routes";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
 import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
+import { trackProgramEvent } from "../../entities/program/api";
 import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
 
@@ -78,6 +79,7 @@ export function ProgramList({
               <a
                 className="secondary-button program-list__link"
                 href={externalUrl}
+                onClick={() => trackProgramEvent(program.id, "CLICK")}
                 rel="noreferrer"
                 target="_blank"
               >

@@ -15,7 +15,8 @@ export type AppRouteKey =
   | "adminPrograms"
   | "adminReview"
   | "adminAddProgram"
-  | "adminManageAdmins";
+  | "adminManageAdmins"
+  | "adminAnalytics";
 
 export type AppRouteDefinition = {
   key: AppRouteKey;
@@ -100,6 +101,13 @@ export const appRoutes: AppRouteDefinition[] = [
     title: "Manage admins",
     scope: "admin",
     navigationLabel: "manage admins"
+  },
+  {
+    key: "adminAnalytics",
+    path: "/admin/analytics",
+    title: "Analytics",
+    scope: "admin",
+    navigationLabel: "analytics"
   },
   {
     key: "profile",

@@ -1,5 +1,6 @@
 import { authorizedJsonBody, requestJson } from "../../shared/api/http";
 import type { Program, ProgramFilters } from "../../shared/types/program";
+import type { ProgramEventType } from "../../shared/types/analytics";
 import type { ProgramDraft } from "../../shared/types/submission";
 
 /**
@@ -105,4 +106,24 @@ export function updateProgram(id: number, draft: ProgramDraft) {
 /** DELETE /api/admin/programs/{id} — удалить программу (только ADMIN). */
 export function deleteProgram(id: number) {
   return authorizedJsonBody<void>("DELETE", `/admin/programs/${id}`);
+}
+
+/**
+ * POST /api/programs/{id}/events — просмотр карточки или переход по ссылке.
+ * Публичный эндпоинт, токен не нужен.
+ */
+export function recordProgramEvent(id: number, type: ProgramEventType) {
+  return requestJson<void>(`/programs/${id}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type })
+  });
+}
+
+/**
+ * Аналитика не должна ломать страницу: ошибку глотаем молча.
+ * У эндпоинта рейт-лимит 120/мин, так что отказ здесь ожидаем и не важен.
+ */
+export function trackProgramEvent(id: number, type: ProgramEventType) {
+  void recordProgramEvent(id, type).catch(() => undefined);
 }

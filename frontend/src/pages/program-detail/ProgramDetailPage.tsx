@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { getProgramById } from "../../entities/program/api";
+import { useEffect, useRef, useState } from "react";
+import { getProgramById, trackProgramEvent } from "../../entities/program/api";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
 import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
@@ -41,6 +41,9 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
   const { navigate } = useRouter();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [reloadToken, setReloadToken] = useState(0);
+  // StrictMode монтирует эффект дважды, а Retry перезапускает загрузку —
+  // просмотр должен засчитаться один раз на программу.
+  const countedViews = useRef<Set<number>>(new Set());
 
   const parsedId = parseProgramId(programId);
 
@@ -61,6 +64,11 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
 
         if (isActive) {
           setState({ kind: "loaded", program });
+
+          if (!countedViews.current.has(program.id)) {
+            countedViews.current.add(program.id);
+            trackProgramEvent(program.id, "VIEW");
+          }
         }
       } catch (error) {
         if (abortController.signal.aborted || !isActive) {
@@ -189,6 +197,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
             <a
               className="primary-button program-detail__link"
               href={externalUrl}
+              onClick={() => trackProgramEvent(program.id, "CLICK")}
               rel="noreferrer"
               target="_blank"
             >
