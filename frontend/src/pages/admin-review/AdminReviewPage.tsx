@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listPendingSubmissions } from "../../entities/submission/api";
-import { toFriendlyApiError } from "../../shared/api/problem";
+import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import type { Submission } from "../../shared/types/submission";
 import { SubmissionReviewActions } from "../../features/submission/review/SubmissionReviewActions";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
@@ -8,6 +9,8 @@ import { AppShell } from "../../widgets/app-shell/AppShell";
 import { SubmissionList } from "../../widgets/submission-list/SubmissionList";
 
 export function AdminReviewPage() {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -34,7 +37,7 @@ export function AdminReviewPage() {
         }
 
         setSubmissions([]);
-        setLoadError(toFriendlyApiError(error, "We couldn’t load the moderation queue."));
+        setLoadError(toErrorText(error, t("admin.queueLoadError")));
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -48,7 +51,7 @@ export function AdminReviewPage() {
       isActive = false;
       abortController.abort();
     };
-  }, [reloadToken]);
+  }, [reloadToken, t, toErrorText]);
 
   const reload = useCallback(() => {
     setReloadToken((current) => current + 1);
@@ -60,40 +63,40 @@ export function AdminReviewPage() {
     setSubmissions((current) => current.filter((item) => item.id !== reviewed.id));
     setLastDecision(
       reviewed.status === "APPROVED"
-        ? `“${reviewed.title}” is published in the catalog.`
-        : `“${reviewed.title}” was rejected. The author will see your comment.`
+        ? t("admin.approvedNotice", { title: reviewed.title })
+        : t("admin.rejectedNotice", { title: reviewed.title })
     );
-  }, []);
+  }, [t]);
 
   function describeQueue() {
     if (loadError) {
-      return "The queue is temporarily unavailable.";
+      return t("admin.queueUnavailable");
     }
 
     if (isLoading) {
-      return "Loading the moderation queue...";
+      return t("admin.queueLoading");
     }
 
     if (submissions.length === 0) {
-      return "Nothing waiting for review";
+      return t("admin.nothingWaiting");
     }
 
-    return `${submissions.length} ${submissions.length === 1 ? "submission" : "submissions"} waiting`;
+    return t("admin.waiting", { count: submissions.length });
   }
 
   return (
     <AppShell
-      title="Admin / review programs"
-      description="Community submissions waiting for a decision. Approving publishes the program to the catalog."
+      title={t("admin.reviewTitle")}
+      description={t("admin.reviewDescription")}
       navigation={<AdminTabs currentRoute="adminReview" />}
     >
       <section className="programs-page__header">
         <div>
-          <h2>Moderation queue</h2>
+          <h2>{t("admin.queueHeading")}</h2>
           <p>{describeQueue()}</p>
         </div>
         <button className="secondary-button" disabled={isLoading} onClick={reload} type="button">
-          Refresh
+          {t("common.refresh")}
         </button>
       </section>
 
@@ -107,14 +110,14 @@ export function AdminReviewPage() {
         <div className="error-banner">
           <p>{loadError}</p>
           <button className="secondary-button" onClick={reload} type="button">
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : isLoading ? (
-        <div className="placeholder-card">Loading the moderation queue...</div>
+        <div className="placeholder-card">{t("admin.queueLoading")}</div>
       ) : (
         <SubmissionList
-          emptyMessage="The queue is empty. New community submissions will show up here."
+          emptyMessage={t("admin.queueEmpty")}
           renderActions={(submission) => (
             <SubmissionReviewActions
               onReviewed={handleReviewed}

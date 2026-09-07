@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getAdminAnalytics } from "../../entities/analytics/api";
-import { toFriendlyApiError } from "../../shared/api/problem";
+import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import type { AdminAnalytics } from "../../shared/types/analytics";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { AppShell } from "../../widgets/app-shell/AppShell";
 import { EngagementChart } from "../../widgets/engagement-chart/EngagementChart";
 
-const TILES: Array<{ key: keyof AdminAnalytics; label: string }> = [
-  { key: "users", label: "People" },
-  { key: "programs", label: "Programs" },
-  { key: "submissions", label: "Submissions" },
-  { key: "favorites", label: "Saves" },
-  { key: "views", label: "Program views" },
-  { key: "clicks", label: "Link clicks" }
+const TILES: Array<{ key: keyof AdminAnalytics; labelKey: string }> = [
+  { key: "users", labelKey: "admin.tileUsers" },
+  { key: "programs", labelKey: "admin.tilePrograms" },
+  { key: "submissions", labelKey: "admin.tileSubmissions" },
+  { key: "favorites", labelKey: "admin.tileFavorites" },
+  { key: "views", labelKey: "admin.tileViews" },
+  { key: "clicks", labelKey: "admin.tileClicks" }
 ];
 
 export function AdminAnalyticsPage() {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
+  const { formatNumber } = useFormatters();
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,7 +46,7 @@ export function AdminAnalyticsPage() {
         }
 
         setAnalytics(null);
-        setError(toFriendlyApiError(loadError, "We couldn’t load analytics right now."));
+        setError(toErrorText(loadError, t("admin.analyticsLoadError")));
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -55,7 +60,7 @@ export function AdminAnalyticsPage() {
       isActive = false;
       abortController.abort();
     };
-  }, [reloadToken]);
+  }, [reloadToken, t, toErrorText]);
 
   const topPrograms = analytics?.topPrograms ?? [];
   // Ширина полосы — доля от лидера, а не от суммы: сравниваем между собой.
@@ -63,8 +68,8 @@ export function AdminAnalyticsPage() {
 
   return (
     <AppShell
-      title="Admin / analytics"
-      description="How people are finding and using the catalog."
+      title={t("admin.analyticsTitle")}
+      description={t("admin.analyticsDescription")}
       navigation={<AdminTabs currentRoute="adminAnalytics" />}
     >
       {error ? (
@@ -75,44 +80,44 @@ export function AdminAnalyticsPage() {
             onClick={() => setReloadToken((current) => current + 1)}
             type="button"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : isLoading || !analytics ? (
-        <div className="placeholder-card">Loading analytics...</div>
+        <div className="placeholder-card">{t("admin.analyticsLoading")}</div>
       ) : (
         <>
-          <section aria-label="Key numbers" className="kpi-row">
+          <section aria-label={t("admin.keyNumbers")} className="kpi-row">
             {TILES.map((tile) => (
               <article className="kpi-tile" key={tile.key}>
-                <p className="kpi-tile__label">{tile.label}</p>
-                <p className="kpi-tile__value">{(analytics[tile.key] as number).toLocaleString()}</p>
+                <p className="kpi-tile__label">{t(tile.labelKey as never)}</p>
+                <p className="kpi-tile__value">{formatNumber(analytics[tile.key] as number)}</p>
               </article>
             ))}
           </section>
 
           <section className="page-section">
-            <h2 className="analytics-section__title">Daily engagement</h2>
+            <h2 className="analytics-section__title">{t("admin.dailyEngagement")}</h2>
             <EngagementChart data={analytics.dailyEngagement} />
           </section>
 
           <section className="page-section">
-            <h2 className="analytics-section__title">Most engaging programs</h2>
+            <h2 className="analytics-section__title">{t("admin.topPrograms")}</h2>
 
             {topPrograms.length === 0 ? (
               <div className="placeholder-card">
-                No program has been opened yet, so there is nothing to rank.
+                {t("admin.topProgramsEmpty")}
               </div>
             ) : (
               <div className="chart__table-wrapper">
                 <table className="chart__table top-programs">
                   <thead>
                     <tr>
-                      <th scope="col">Program</th>
-                      <th scope="col">Views</th>
-                      <th scope="col">Clicks</th>
-                      <th scope="col">Saves</th>
-                      <th scope="col">Total</th>
+                      <th scope="col">{t("admin.columnProgram")}</th>
+                      <th scope="col">{t("admin.columnViews")}</th>
+                      <th scope="col">{t("admin.columnClicks")}</th>
+                      <th scope="col">{t("admin.columnSaves")}</th>
+                      <th scope="col">{t("admin.columnTotal")}</th>
                     </tr>
                   </thead>
                   <tbody>

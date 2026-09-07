@@ -1,6 +1,7 @@
 import type { Program, ProgramType } from "../../../shared/types/program";
 import type { ProgramDraft } from "../../../shared/types/submission";
-import { readFieldErrors, toFriendlyApiError } from "../../../shared/api/problem";
+import { readFieldErrors } from "../../../shared/api/problem";
+import { message, type Message } from "../../../shared/i18n/message";
 
 export type ProgramDraftFormValues = {
   title: string;
@@ -11,7 +12,7 @@ export type ProgramDraftFormValues = {
   url: string;
 };
 
-export type ProgramDraftFieldErrors = Partial<Record<keyof ProgramDraftFormValues, string>>;
+export type ProgramDraftFieldErrors = Partial<Record<keyof ProgramDraftFormValues, Message>>;
 
 export const emptyProgramDraft: ProgramDraftFormValues = {
   title: "",
@@ -64,36 +65,36 @@ export function validateProgramDraft(values: ProgramDraftFormValues): ProgramDra
   const errors: ProgramDraftFieldErrors = {};
 
   if (!values.title.trim()) {
-    errors.title = "Enter the program title.";
+    errors.title = message("validation.enterTitle");
   } else if (values.title.trim().length > TITLE_MAX) {
-    errors.title = `Title must be ${TITLE_MAX} characters or fewer.`;
+    errors.title = message("validation.maxLength", { max: TITLE_MAX });
   }
 
   if (!values.description.trim()) {
-    errors.description = "Add a short description of the program.";
+    errors.description = message("validation.enterDescription");
   } else if (values.description.trim().length > DESCRIPTION_MAX) {
-    errors.description = `Description must be ${DESCRIPTION_MAX} characters or fewer.`;
+    errors.description = message("validation.maxLength", { max: DESCRIPTION_MAX });
   }
 
   if (!values.country.trim()) {
-    errors.country = "Enter the country.";
+    errors.country = message("validation.enterCountry");
   } else if (values.country.trim().length > COUNTRY_MAX) {
-    errors.country = `Country must be ${COUNTRY_MAX} characters or fewer.`;
+    errors.country = message("validation.maxLength", { max: COUNTRY_MAX });
   }
 
   if (!values.type) {
-    errors.type = "Choose a program type.";
+    errors.type = message("validation.chooseType");
   }
 
   if (values.deadline && !isTodayOrFutureDate(values.deadline)) {
-    errors.deadline = "The deadline must be today or a future date.";
+    errors.deadline = message("validation.futureDeadline");
   }
 
   if (values.url.trim()) {
     if (!isHttpUrl(values.url.trim())) {
-      errors.url = "Enter a full link, for example https://example.com/program.";
+      errors.url = message("validation.validUrl");
     } else if (values.url.trim().length > URL_MAX) {
-      errors.url = `Link must be ${URL_MAX} characters or fewer.`;
+      errors.url = message("validation.maxLength", { max: URL_MAX });
     }
   }
 
@@ -112,27 +113,28 @@ export function toProgramDraft(values: ProgramDraftFormValues): ProgramDraft {
   };
 }
 
-const serverFieldMessages: Record<string, string> = {
-  "must not be blank": "This field is required.",
-  "must be a future date": "The deadline must be today or a future date.",
-  "must be a date in the present or in the future":
-    "The deadline must be today or a future date.",
-  "must be a valid URL": "Enter a full link, for example https://example.com/program.",
-  "must not be null": "This field is required."
+const serverMessageKeys: Record<string, string> = {
+  "must not be blank": "validation.required",
+  "must not be null": "validation.required",
+  "must be a future date": "validation.futureDeadline",
+  "must be a date in the present or in the future": "validation.futureDeadline",
+  "must be a valid URL": "validation.validUrl"
 };
 
-function toFieldMessage(message: string) {
-  if (serverFieldMessages[message]) {
-    return serverFieldMessages[message];
+function toFieldMessage(serverText: string): Message {
+  if (serverMessageKeys[serverText]) {
+    return message(serverMessageKeys[serverText]);
   }
 
-  const sizeMatch = /size must be between \d+ and (\d+)/.exec(message);
+  const sizeMatch = /size must be between \d+ and (\d+)/.exec(serverText);
 
   if (sizeMatch) {
-    return `Must be ${sizeMatch[1]} characters or fewer.`;
+    return message("validation.maxLength", { max: Number(sizeMatch[1]) });
   }
 
-  return message;
+  // Незнакомое сообщение бэка показываем как есть — лучше английский текст,
+  // чем пустое место.
+  return message(serverText);
 }
 
 /** Ошибки валидации с бэка (ProblemDetail.errors) → ошибки полей формы. */
@@ -149,9 +151,7 @@ export function readServerFieldErrors(error: unknown): ProgramDraftFieldErrors {
   return fieldErrors;
 }
 
-export function toFriendlySubmitError(error: unknown) {
-  return toFriendlyApiError(error, "We couldn’t send this program. Please try again.");
-}
+
 
 /** Программа из API → значения формы для режима редактирования. */
 export function toFormValues(program: Program): ProgramDraftFormValues {

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { getPageItems, PAGE_GAP } from "../../shared/lib/pagination";
 
 type PaginationProps = {
@@ -15,6 +16,8 @@ export function Pagination({
   onPageChange,
   disabled = false
 }: PaginationProps) {
+  const { t } = useTranslation();
+
   // Одна страница — пагинатор только занимает место.
   if (totalPages <= 1) {
     return null;
@@ -25,14 +28,14 @@ export function Pagination({
   const isLast = currentPage >= totalPages - 1;
 
   return (
-    <nav aria-label="Catalog pages" className="pagination">
+    <nav aria-label={t("pagination.label")} className="pagination">
       <button
         className="pagination__step"
         disabled={disabled || isFirst}
         onClick={() => onPageChange(currentPage - 1)}
         type="button"
       >
-        ← Previous
+        {t("pagination.previous")}
       </button>
 
       <ul className="pagination__list">
@@ -45,7 +48,7 @@ export function Pagination({
             <li key={item}>
               <button
                 aria-current={item === currentPage ? "page" : undefined}
-                aria-label={`Page ${item + 1}`}
+                aria-label={t("pagination.page", { page: item + 1 })}
                 className={`pagination__page ${item === currentPage ? "pagination__page--active" : ""}`}
                 disabled={disabled}
                 onClick={() => onPageChange(item)}
@@ -64,7 +67,7 @@ export function Pagination({
         onClick={() => onPageChange(currentPage + 1)}
         type="button"
       >
-        Next →
+        {t("pagination.next")}
       </button>
     </nav>
   );

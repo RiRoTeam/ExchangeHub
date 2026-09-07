@@ -112,10 +112,10 @@ describe("readServerFieldErrors", () => {
     });
 
     expect(readServerFieldErrors(error)).toEqual({
-      title: "This field is required.",
-      deadline: "The deadline must be today or a future date.",
-      url: "Enter a full link, for example https://example.com/program.",
-      description: "Must be 5000 characters or fewer."
+      title: { key: "validation.required" },
+      deadline: { key: "validation.futureDeadline" },
+      url: { key: "validation.validUrl" },
+      description: { key: "validation.maxLength", params: { max: 5000 } }
     });
   });
 
@@ -125,7 +125,7 @@ describe("readServerFieldErrors", () => {
     });
 
     expect(readServerFieldErrors(error)).toEqual({
-      deadline: "The deadline must be today or a future date."
+      deadline: { key: "validation.futureDeadline" }
     });
   });
 

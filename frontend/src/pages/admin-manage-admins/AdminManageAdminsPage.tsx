@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { listAdminUsers, type AdminUser } from "../../entities/user/adminApi";
-import { toFriendlyApiError } from "../../shared/api/problem";
-
+import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import { ChangeRoleControl } from "../../features/admin/change-role/ChangeRoleControl";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { AppShell } from "../../widgets/app-shell/AppShell";
-
-function formatDate(value: string) {
-  const parsed = new Date(value);
-
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
-}
 
 function matchesQuery(user: AdminUser, query: string) {
   const normalized = query.trim().toLowerCase();
@@ -27,6 +22,9 @@ function matchesQuery(user: AdminUser, query: string) {
 }
 
 export function AdminManageAdminsPage() {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
+  const { formatDate } = useFormatters();
   const { session } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
@@ -55,7 +53,7 @@ export function AdminManageAdminsPage() {
         }
 
         setUsers([]);
-        setLoadError(toFriendlyApiError(error, "We couldn’t load the user list."));
+        setLoadError(toErrorText(error, t("admin.peopleLoadError")));
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -69,7 +67,7 @@ export function AdminManageAdminsPage() {
       isActive = false;
       abortController.abort();
     };
-  }, [reloadToken]);
+  }, [reloadToken, t, toErrorText]);
 
   const handleChanged = useCallback((updated: AdminUser) => {
     setUsers((current) =>
@@ -77,10 +75,10 @@ export function AdminManageAdminsPage() {
     );
     setNotice(
       updated.role === "ADMIN"
-        ? `${updated.name} is now an administrator.`
-        : `${updated.name} no longer has admin access and was signed out.`
+        ? t("admin.promotedNotice", { name: updated.name })
+        : t("admin.demotedNotice", { name: updated.name })
     );
-  }, []);
+  }, [t]);
 
   const visibleUsers = useMemo(
     () => users.filter((user) => matchesQuery(user, query)),
@@ -91,19 +89,21 @@ export function AdminManageAdminsPage() {
 
   return (
     <AppShell
-      title="Admin / manage admins"
-      description="Who can moderate submissions and edit the catalog."
+      title={t("admin.usersTitle")}
+      description={t("admin.usersDescription")}
       navigation={<AdminTabs currentRoute="adminManageAdmins" />}
     >
       <section className="programs-page__header">
         <div>
-          <h2>People</h2>
+          <h2>{t("admin.peopleHeading")}</h2>
           <p>
             {loadError
-              ? "The user list is temporarily unavailable."
+              ? t("admin.peopleUnavailable")
               : isLoading
-              ? "Loading people..."
-              : `${users.length} ${users.length === 1 ? "account" : "accounts"}, ${adminCount} with admin access`}
+              ? t("admin.peopleLoading")
+              : `${t("admin.accounts", { count: users.length })}, ${t("admin.withAdminAccess", {
+                  count: adminCount
+                })}`}
           </p>
         </div>
         <button
@@ -112,7 +112,7 @@ export function AdminManageAdminsPage() {
           onClick={() => setReloadToken((current) => current + 1)}
           type="button"
         >
-          Refresh
+          {t("common.refresh")}
         </button>
       </section>
 
@@ -128,26 +128,26 @@ export function AdminManageAdminsPage() {
             onClick={() => setReloadToken((current) => current + 1)}
             type="button"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : isLoading ? (
-        <div className="placeholder-card">Loading people...</div>
+        <div className="placeholder-card">{t("admin.peopleLoading")}</div>
       ) : (
         <>
           <label className="auth-form-fields__label user-table__search">
-            <span>Find a person</span>
+            <span>{t("admin.findPerson")}</span>
             <input
               className="text-input"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by name or email"
+              placeholder={t("admin.findPersonPlaceholder")}
               type="search"
               value={query}
             />
           </label>
 
           {visibleUsers.length === 0 ? (
-            <div className="placeholder-card">No accounts match this search.</div>
+            <div className="placeholder-card">{t("admin.noPeopleFound")}</div>
           ) : (
             <ul className="user-list">
               {visibleUsers.map((user) => {
@@ -158,10 +158,10 @@ export function AdminManageAdminsPage() {
                     <div className="user-list__identity">
                       <p className="user-list__name">
                         {user.name}
-                        {isSelf ? <span className="user-list__you">you</span> : null}
+                        {isSelf ? <span className="user-list__you">{t("admin.you")}</span> : null}
                       </p>
                       <p className="user-list__email">{user.email}</p>
-                      <p className="user-list__joined">Joined {formatDate(user.createdAt)}</p>
+                      <p className="user-list__joined">{t("admin.joined", { date: formatDate(user.createdAt) })}</p>
                     </div>
 
                     <span
@@ -169,7 +169,7 @@ export function AdminManageAdminsPage() {
                         user.role === "ADMIN" ? "status-pill--approved" : "status-pill--pending"
                       }`}
                     >
-                      {user.role === "ADMIN" ? "Admin" : "User"}
+                      {t(`roles.${user.role}`)}
                     </span>
 
                     <ChangeRoleControl isSelf={isSelf} onChanged={handleChanged} user={user} />

@@ -135,7 +135,7 @@ describe("readServerFieldErrors", () => {
     });
 
     expect(readServerFieldErrors(error)).toEqual({
-      name: "Must be between 2 and 100 characters."
+      name: { key: "validation.betweenLength", params: { min: 2, max: 100 } }
     });
   });
 

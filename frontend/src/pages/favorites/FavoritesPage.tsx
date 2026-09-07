@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useFavorites } from "../../app/providers/FavoritesProvider";
 import { filterFavorites } from "../../entities/favorite/lib";
 import { ProgramSearch } from "../../features/program/search/ProgramSearch";
@@ -8,6 +9,7 @@ import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav
 import { ProgramList } from "../../widgets/program-list/ProgramList";
 
 export function FavoritesPage() {
+  const { t } = useTranslation();
   const { status, programs, loadError, actionError, reload } = useFavorites();
   const [query, setQuery] = useState("");
 
@@ -22,29 +24,32 @@ export function FavoritesPage() {
 
   function describeCount() {
     if (loadError) {
-      return "Favorites are temporarily unavailable.";
+      return t("favorites.unavailable");
     }
 
     if (isLoading) {
-      return "Loading your favorites...";
+      return t("favorites.loading");
     }
 
     if (query.trim()) {
-      return `${visiblePrograms.length} of ${programs.length} saved programs match`;
+      return t("favorites.matching", {
+        visible: visiblePrograms.length,
+        total: programs.length
+      });
     }
 
-    return `${programs.length} ${programs.length === 1 ? "saved program" : "saved programs"}`;
+    return t("favorites.saved", { count: programs.length });
   }
 
   return (
     <AppShell
-      title="Favorite programs"
-      description="Programs you saved while browsing the catalog."
+      title={t("favorites.title")}
+      description={t("favorites.description")}
       aside={
-        <FilterSidebar title="Search favorites">
+        <FilterSidebar title={t("favorites.searchTitle")}>
           <ProgramSearch
             onChange={setQuery}
-            placeholder="Search your saved programs"
+            placeholder={t("favorites.searchPlaceholder")}
             value={query}
           />
         </FilterSidebar>
@@ -53,7 +58,7 @@ export function FavoritesPage() {
     >
       <section className="programs-page__header">
         <div>
-          <h2>Saved programs</h2>
+          <h2>{t("favorites.heading")}</h2>
           <p>{describeCount()}</p>
         </div>
       </section>
@@ -64,17 +69,15 @@ export function FavoritesPage() {
         <div className="error-banner">
           <p>{loadError}</p>
           <button className="secondary-button" onClick={reload} type="button">
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : isLoading ? (
-        <div className="placeholder-card">Loading your favorites...</div>
+        <div className="placeholder-card">{t("favorites.loading")}</div>
       ) : (
         <ProgramList
           emptyMessage={
-            query.trim()
-              ? "No saved programs match this search."
-              : "Nothing saved yet. Tap the heart on any program in the catalog to keep it here."
+            query.trim() ? t("favorites.emptyFiltered") : t("favorites.empty")
           }
           programs={visiblePrograms}
         />

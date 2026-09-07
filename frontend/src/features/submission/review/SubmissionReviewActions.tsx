@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { reviewSubmission } from "../../../entities/submission/api";
 import { ApiError } from "../../../shared/api/http";
-import { toFriendlyApiError } from "../../../shared/api/problem";
+import { useApiErrorText } from "../../../shared/i18n/useApiErrorText";
 import type { Submission } from "../../../shared/types/submission";
 
 type SubmissionReviewActionsProps = {
@@ -19,6 +20,8 @@ export function SubmissionReviewActions({
   onReviewed,
   onStale
 }: SubmissionReviewActionsProps) {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
   const [mode, setMode] = useState<Mode>("idle");
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -35,12 +38,12 @@ export function SubmissionReviewActions({
     } catch (reviewError) {
       // 409 — заявку уже обработали, показывать её дальше нельзя.
       if (reviewError instanceof ApiError && reviewError.status === 409) {
-        setError("This submission was already reviewed. Refreshing the queue.");
+        setError(t("admin.alreadyReviewed"));
         onStale();
         return;
       }
 
-      setError(toFriendlyApiError(reviewError, "We couldn’t save this decision."));
+      setError(toErrorText(reviewError, t("admin.reviewSaveError")));
     } finally {
       setIsSubmitting(false);
     }
@@ -48,7 +51,7 @@ export function SubmissionReviewActions({
 
   function handleReject() {
     if (!comment.trim()) {
-      setCommentError("Explain why you’re rejecting this — the author will see it.");
+      setCommentError(t("admin.rejectReasonRequired"));
       return;
     }
 
@@ -68,7 +71,7 @@ export function SubmissionReviewActions({
             onClick={() => void submitDecision("APPROVED")}
             type="button"
           >
-            {isSubmitting ? "Publishing..." : "Approve and publish"}
+            {isSubmitting ? t("admin.approving") : t("admin.approve")}
           </button>
           <button
             className="secondary-button secondary-button--danger"
@@ -76,14 +79,14 @@ export function SubmissionReviewActions({
             onClick={() => setMode("rejecting")}
             type="button"
           >
-            Reject
+            {t("admin.reject")}
           </button>
         </div>
       ) : (
         <div className="review-actions__reject">
           <div className="form-field">
             <label className="auth-form-fields__label" htmlFor={commentFieldId}>
-              <span>Why are you rejecting this?</span>
+              <span>{t("admin.rejectReasonLabel")}</span>
               <textarea
                 aria-invalid={Boolean(commentError)}
                 className="text-input text-input--textarea review-actions__comment"
@@ -93,7 +96,7 @@ export function SubmissionReviewActions({
                   setComment(event.target.value);
                   setCommentError("");
                 }}
-                placeholder="Duplicate of an existing program, broken link, not a real opportunity..."
+                placeholder={t("admin.rejectReasonPlaceholder")}
                 value={comment}
               />
             </label>
@@ -102,7 +105,7 @@ export function SubmissionReviewActions({
                 {commentError}
               </p>
             ) : (
-              <p className="form-field__hint">The author sees this on their submissions page.</p>
+              <p className="form-field__hint">{t("admin.rejectReasonHint")}</p>
             )}
           </div>
 
@@ -113,7 +116,7 @@ export function SubmissionReviewActions({
               onClick={handleReject}
               type="button"
             >
-              {isSubmitting ? "Rejecting..." : "Confirm rejection"}
+              {isSubmitting ? t("admin.rejecting") : t("admin.confirmRejection")}
             </button>
             <button
               className="secondary-button"
@@ -125,7 +128,7 @@ export function SubmissionReviewActions({
               }}
               type="button"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>

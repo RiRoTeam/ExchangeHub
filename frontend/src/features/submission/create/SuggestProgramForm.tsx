@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ProgramDraft } from "../../../shared/types/submission";
+import { useApiErrorText } from "../../../shared/i18n/useApiErrorText";
+import type { Message } from "../../../shared/i18n/message";
 import {
   emptyProgramDraft,
   programTypeOptions,
   readServerFieldErrors,
-  toFriendlySubmitError,
   toProgramDraft,
   validateProgramDraft,
   type ProgramDraftFieldErrors,
@@ -52,15 +54,25 @@ function Field({ id, label, error, hint, children }: FieldProps) {
   );
 }
 
+function useFieldError() {
+  const { t } = useTranslation();
+
+  return (error?: Message) => (error ? t(error.key as never, error.params) : undefined);
+}
+
 export function SuggestProgramForm({
   onSubmit,
-  heading = "Program form",
-  submitLabel = "Send program for review",
-  successMessage = "Thanks! Your program is now in the moderation queue.",
+  heading,
+  submitLabel,
+  successMessage,
   initialValues,
   resetAfterSubmit = true,
   onCancel
 }: SuggestProgramFormProps) {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
+  const renderError = useFieldError();
+
   // Бэк принимает сегодняшний дедлайн (@FutureOrPresent), поэтому и календарь
   // не должен давать выбрать прошлое.
   const now = new Date();
@@ -119,15 +131,15 @@ export function SuggestProgramForm({
         setValues(emptyProgramDraft);
       }
 
-      setSuccessText(successMessage);
+      setSuccessText(successMessage ?? t("submissions.submitSuccess"));
     } catch (submitError) {
       const serverFieldErrors = readServerFieldErrors(submitError);
 
       if (Object.keys(serverFieldErrors).length > 0) {
         setFieldErrors(serverFieldErrors);
-        setFormError("Some fields need attention before we can send this.");
+        setFormError(t("validation.fixFields"));
       } else {
-        setFormError(toFriendlySubmitError(submitError));
+        setFormError(toErrorText(submitError, t("errors.submissionSend")));
       }
     } finally {
       setIsSubmitting(false);
@@ -136,9 +148,9 @@ export function SuggestProgramForm({
 
   return (
     <form className="placeholder-form" noValidate onSubmit={handleSubmit}>
-      <h2>{heading}</h2>
+      <h2>{heading ?? t("submissions.formHeading")}</h2>
 
-      <Field id="title" label="Title" error={fieldErrors.title}>
+      <Field id="title" label={t("submissions.title")} error={renderError(fieldErrors.title)}>
         {(fieldId, isInvalid) => (
           <input
             aria-invalid={isInvalid}
@@ -147,14 +159,14 @@ export function SuggestProgramForm({
             id={fieldId}
             name="title"
             onChange={(event) => updateField("title", event.target.value)}
-            placeholder="Summer research exchange in Tartu"
+            placeholder={t("submissions.titlePlaceholder")}
             type="text"
             value={values.title}
           />
         )}
       </Field>
 
-      <Field id="country" label="Country" error={fieldErrors.country}>
+      <Field id="country" label={t("programs.country")} error={renderError(fieldErrors.country)}>
         {(fieldId, isInvalid) => (
           <input
             aria-invalid={isInvalid}
@@ -163,14 +175,14 @@ export function SuggestProgramForm({
             id={fieldId}
             name="country"
             onChange={(event) => updateField("country", event.target.value)}
-            placeholder="Estonia"
+            placeholder={t("submissions.countryPlaceholder")}
             type="text"
             value={values.country}
           />
         )}
       </Field>
 
-      <Field id="type" label="Type" error={fieldErrors.type}>
+      <Field id="type" label={t("programs.type")} error={renderError(fieldErrors.type)}>
         {(fieldId, isInvalid) => (
           <select
             aria-invalid={isInvalid}
@@ -183,10 +195,10 @@ export function SuggestProgramForm({
             }
             value={values.type}
           >
-            <option value="">Choose a type</option>
+            <option value="">{t("submissions.chooseType")}</option>
             {programTypeOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(`programType.${option.value}`)}
               </option>
             ))}
           </select>
@@ -195,9 +207,9 @@ export function SuggestProgramForm({
 
       <Field
         id="deadline"
-        label="Deadline"
-        error={fieldErrors.deadline}
-        hint="Optional. Today or a future date."
+        label={t("programs.deadline")}
+        error={renderError(fieldErrors.deadline)}
+        hint={t("submissions.deadlineHint")}
       >
         {(fieldId, isInvalid) => (
           <input
@@ -214,7 +226,7 @@ export function SuggestProgramForm({
         )}
       </Field>
 
-      <Field id="url" label="Source URL" error={fieldErrors.url} hint="Optional.">
+      <Field id="url" label={t("submissions.urlLabel")} error={renderError(fieldErrors.url)} hint={t("submissions.optional")}>
         {(fieldId, isInvalid) => (
           <input
             aria-invalid={isInvalid}
@@ -223,14 +235,14 @@ export function SuggestProgramForm({
             id={fieldId}
             name="url"
             onChange={(event) => updateField("url", event.target.value)}
-            placeholder="https://example.com/program"
+            placeholder={t("submissions.urlPlaceholder")}
             type="url"
             value={values.url}
           />
         )}
       </Field>
 
-      <Field id="description" label="Description" error={fieldErrors.description}>
+      <Field id="description" label={t("submissions.description")} error={renderError(fieldErrors.description)}>
         {(fieldId, isInvalid) => (
           <textarea
             aria-invalid={isInvalid}
@@ -239,7 +251,7 @@ export function SuggestProgramForm({
             id={fieldId}
             name="description"
             onChange={(event) => updateField("description", event.target.value)}
-            placeholder="Who it's for, what's covered, how to apply."
+            placeholder={t("submissions.descriptionPlaceholder")}
             value={values.description}
           />
         )}
@@ -252,7 +264,7 @@ export function SuggestProgramForm({
 
       <div className="action-strip">
         <button className="primary-button" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Saving..." : submitLabel}
+          {isSubmitting ? t("common.saving") : submitLabel ?? t("submissions.submit")}
         </button>
         {onCancel ? (
           <button
@@ -261,7 +273,7 @@ export function SuggestProgramForm({
             onClick={onCancel}
             type="button"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         ) : null}
       </div>

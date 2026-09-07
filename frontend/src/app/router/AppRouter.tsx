@@ -1,4 +1,5 @@
 import { useEffect, type ReactElement } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../providers/AuthProvider";
 import { AdminAddProgramPage } from "../../pages/admin-add-program/AdminAddProgramPage";
 import { AdminAnalyticsPage } from "../../pages/admin-analytics/AdminAnalyticsPage";
@@ -50,6 +51,7 @@ function RouteStatus({ title, message }: { title: string; message: string }) {
 
 export function AppRouter() {
   const { pathname, navigate } = useRouter();
+  const { t } = useTranslation();
   const { status, session } = useAuth();
   const match = findRouteByPath(pathname);
   const matchedRoute = match?.route ?? null;
@@ -88,8 +90,8 @@ export function AppRouter() {
   if (status === "bootstrapping") {
     return (
       <RouteStatus
-        title="Opening ExchangeHub"
-        message="We’re restoring your session and preparing the app."
+        title={t("routeStatus.openingTitle")}
+        message={t("routeStatus.openingMessage")}
       />
     );
   }
@@ -97,8 +99,8 @@ export function AppRouter() {
   if (redirectPath) {
     return (
       <RouteStatus
-        title="Taking you to the right place"
-        message="One moment while we redirect you."
+        title={t("routeStatus.redirectTitle")}
+        message={t("routeStatus.redirectMessage")}
       />
     );
   }
@@ -106,8 +108,8 @@ export function AppRouter() {
   if (!match) {
     return (
       <RouteStatus
-        title="Page not found"
-        message="This route doesn’t exist yet in the current frontend build."
+        title={t("routeStatus.notFoundTitle")}
+        message={t("routeStatus.notFoundMessage")}
       />
     );
   }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useFavorites } from "../../../app/providers/FavoritesProvider";
 import type { Program } from "../../../shared/types/program";
 
@@ -23,11 +24,14 @@ function HeartIcon({ filled }: { filled: boolean }) {
 }
 
 export function ToggleFavoriteButton({ program, size = "compact" }: ToggleFavoriteButtonProps) {
+  const { t } = useTranslation();
   const { status, isFavorite, isPending, toggleFavorite } = useFavorites();
 
   const active = isFavorite(program.id);
   const pending = isPending(program.id) || status === "loading" || status === "idle";
-  const label = active ? `Remove ${program.title} from favorites` : `Save ${program.title} to favorites`;
+  const label = active
+    ? t("favorites.remove", { title: program.title })
+    : t("favorites.add", { title: program.title });
 
   return (
     <button
@@ -41,7 +45,7 @@ export function ToggleFavoriteButton({ program, size = "compact" }: ToggleFavori
         event.stopPropagation();
         void toggleFavorite(program);
       }}
-      title={active ? "Remove from favorites" : "Save to favorites"}
+      title={active ? t("favorites.removeShort") : t("favorites.addShort")}
       type="button"
     >
       <HeartIcon filled={active} />

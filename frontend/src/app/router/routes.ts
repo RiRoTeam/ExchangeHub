@@ -24,6 +24,7 @@ export type AppRouteDefinition = {
   path: string;
   title: string;
   scope: RouteScope;
+  /** Ключ перевода: подпись в навигации. */
   navigationLabel: string;
   /** Не показывать в навигации: страница открывается только по ссылке. */
   hiddenInNav?: boolean;
@@ -43,14 +44,14 @@ export const appRoutes: AppRouteDefinition[] = [
     path: "/login",
     title: "Login",
     scope: "public",
-    navigationLabel: "login"
+    navigationLabel: "nav.login"
   },
   {
     key: "programs",
     path: "/programs",
     title: "All programs",
     scope: "user",
-    navigationLabel: "all programs"
+    navigationLabel: "nav.allPrograms"
   },
   {
     key: "programDetail",
@@ -58,7 +59,7 @@ export const appRoutes: AppRouteDefinition[] = [
     title: "Program",
     // Карточку открывают обе роли: админ приходит сюда из своего каталога.
     scope: "authenticated",
-    navigationLabel: "program",
+    navigationLabel: "nav.allPrograms",
     hiddenInNav: true
   },
   {
@@ -66,56 +67,56 @@ export const appRoutes: AppRouteDefinition[] = [
     path: "/favorites",
     title: "Favorite programs",
     scope: "user",
-    navigationLabel: "favorite programs"
+    navigationLabel: "nav.favorites"
   },
   {
     key: "suggestProgram",
     path: "/suggest-program",
     title: "Suggest program",
     scope: "user",
-    navigationLabel: "suggest program"
+    navigationLabel: "nav.suggestProgram"
   },
   {
     key: "adminPrograms",
     path: "/admin/programs",
     title: "All programs",
     scope: "admin",
-    navigationLabel: "all programs"
+    navigationLabel: "nav.allPrograms"
   },
   {
     key: "adminReview",
     path: "/admin/review",
     title: "Review programs",
     scope: "admin",
-    navigationLabel: "review programs"
+    navigationLabel: "nav.reviewPrograms"
   },
   {
     key: "adminAddProgram",
     path: "/admin/add-program",
     title: "Add program",
     scope: "admin",
-    navigationLabel: "add program"
+    navigationLabel: "nav.addProgram"
   },
   {
     key: "adminManageAdmins",
     path: "/admin/manage-admins",
     title: "Manage admins",
     scope: "admin",
-    navigationLabel: "manage admins"
+    navigationLabel: "nav.manageAdmins"
   },
   {
     key: "adminAnalytics",
     path: "/admin/analytics",
     title: "Analytics",
     scope: "admin",
-    navigationLabel: "analytics"
+    navigationLabel: "nav.analytics"
   },
   {
     key: "profile",
     path: "/profile",
     title: "Profile",
     scope: "authenticated",
-    navigationLabel: "profile"
+    navigationLabel: "nav.profile"
   }
 ];
 

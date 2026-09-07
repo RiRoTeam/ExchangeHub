@@ -14,7 +14,7 @@ import {
   refreshAuthTokens,
   revokeRefreshToken
 } from "../../entities/auth/api";
-import { AdminAccessRequiredError, toFriendlyAuthError } from "../../entities/auth/errors";
+import { AdminAccessRequiredError, toAuthErrorKey } from "../../entities/auth/errors";
 import {
   clearStoredSession,
   readStoredSession,
@@ -255,7 +255,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return nextSession;
     } catch (error) {
       resetSession();
-      throw new Error(toFriendlyAuthError(error, payload.mode));
+      // В message кладём ключ перевода: показывать текст будет LoginPage.
+      throw new Error(toAuthErrorKey(error, payload.mode));
     }
   }
 

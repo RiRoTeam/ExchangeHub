@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ApiError } from "../../shared/api/http";
 import type { ProgramType } from "../../shared/types/program";
 import { useDebouncedValue } from "../../shared/lib/useDebouncedValue";
@@ -20,25 +21,27 @@ const emptyPage: ProgramPage = {
   totalPages: 0
 };
 
-function toFriendlyProgramsError(error: unknown) {
+/** Ключ перевода для ошибки загрузки каталога. */
+function toProgramsErrorKey(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status >= 500) {
-      return "We couldn’t load programs right now because the server is having trouble.";
+      return "programs.loadErrorServer";
     }
 
     if (error.status === 400) {
-      return "These filters couldn’t be processed. Please adjust them and try again.";
+      return "programs.loadErrorFilters";
     }
   }
 
   if (error instanceof TypeError) {
-    return "We couldn’t reach ExchangeHub. Check your connection and try again.";
+    return "programs.loadErrorNetwork";
   }
 
-  return "We couldn’t load programs right now. Please try again.";
+  return "programs.loadError";
 }
 
 export function ProgramsPage() {
+  const { t } = useTranslation();
   const { actionError: favoriteError } = useFavorites();
   const [result, setResult] = useState<ProgramPage>(emptyPage);
   const [query, setQuery] = useState("");
@@ -94,7 +97,7 @@ export function ProgramsPage() {
         }
 
         setResult(emptyPage);
-        setError(toFriendlyProgramsError(loadError));
+        setError(t(toProgramsErrorKey(loadError) as never));
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -108,7 +111,7 @@ export function ProgramsPage() {
       isActive = false;
       abortController.abort();
     };
-  }, [activeFilters, page, requestVersion]);
+  }, [activeFilters, page, requestVersion, t]);
 
   // Смена фильтра почти всегда меняет и число страниц, поэтому возвращаемся
   // на первую. Сбрасываем в обработчике, а не эффектом, — иначе после дебаунса
@@ -134,32 +137,34 @@ export function ProgramsPage() {
 
   function describeResults() {
     if (error) {
-      return "Programs are temporarily unavailable.";
+      return t("programs.unavailable");
     }
 
     if (isLoading) {
-      return "Loading programs...";
+      return t("common.loading");
     }
 
     if (result.totalElements === 0) {
-      return "No programs found";
+      return t("programs.nothingFound");
     }
-
-    const firstOnPage = result.page * result.size + 1;
-    const lastOnPage = firstOnPage + result.programs.length - 1;
-    const noun = result.totalElements === 1 ? "program" : "programs";
 
     if (result.totalPages <= 1) {
-      return `${result.totalElements} ${noun} found`;
+      return t("programs.programsFound", { count: result.totalElements });
     }
 
-    return `${firstOnPage}–${lastOnPage} of ${result.totalElements} ${noun}`;
+    const from = result.page * result.size + 1;
+
+    return t("programs.rangeOfTotal", {
+      from,
+      to: from + result.programs.length - 1,
+      total: result.totalElements
+    });
   }
 
   return (
     <AppShell
-      title="All programs"
-      description="Browse current programs, search by keyword, and narrow the list with server-backed filters."
+      title={t("programs.catalogTitle")}
+      description={t("programs.catalogDescription")}
       aside={
         <FilterSidebar>
           <ProgramSearch onChange={changeFilter(setQuery)} value={query} />
@@ -176,7 +181,7 @@ export function ProgramsPage() {
     >
       <section className="programs-page__header">
         <div>
-          <h2>Program catalog</h2>
+          <h2>{t("programs.catalogHeading")}</h2>
           <p>{describeResults()}</p>
         </div>
       </section>
@@ -189,7 +194,7 @@ export function ProgramsPage() {
             onClick={() => setRequestVersion((current) => current + 1)}
             type="button"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : null}
@@ -197,11 +202,11 @@ export function ProgramsPage() {
       {favoriteError ? <div className="error-banner"><p>{favoriteError}</p></div> : null}
 
       {isLoading ? (
-        <div className="placeholder-card">Loading programs...</div>
+        <div className="placeholder-card">{t("common.loading")}</div>
       ) : error ? null : (
         <>
           <ProgramList
-            emptyMessage="No programs match these filters yet. Try broadening the search."
+            emptyMessage={t("programs.emptyFiltered")}
             programs={result.programs}
           />
           <Pagination

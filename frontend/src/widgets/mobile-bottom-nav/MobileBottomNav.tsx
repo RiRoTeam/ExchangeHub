@@ -1,4 +1,5 @@
 import { userRoutes, type AppRouteKey } from "../../app/router/routes";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "../../app/router/RouterProvider";
 
 type MobileBottomNavProps = {
@@ -7,9 +8,10 @@ type MobileBottomNavProps = {
 
 export function MobileBottomNav({ currentRoute }: MobileBottomNavProps) {
   const { navigate } = useRouter();
+  const { t } = useTranslation();
 
   return (
-    <nav aria-label="Mobile navigation" className="mobile-nav">
+    <nav aria-label={t("nav.allPrograms")} className="mobile-nav">
       <ul className="mobile-nav__list">
         {userRoutes.map((route) => (
           <li key={route.key}>
@@ -18,7 +20,7 @@ export function MobileBottomNav({ currentRoute }: MobileBottomNavProps) {
               onClick={() => navigate(route.path)}
               type="button"
             >
-              {route.navigationLabel}
+              {t(route.navigationLabel as never)}
             </button>
           </li>
         ))}
