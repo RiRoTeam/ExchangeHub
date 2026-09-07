@@ -7,7 +7,10 @@ import { ApiError } from "../../shared/api/http";
 import { toFriendlyApiError } from "../../shared/api/problem";
 import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
+import { useAuth } from "../../app/providers/AuthProvider";
 import { useRouter } from "../../app/router/RouterProvider";
+import { getDefaultPathForRole } from "../../app/router/routes";
+import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { AppShell } from "../../widgets/app-shell/AppShell";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
 
@@ -39,6 +42,11 @@ function parseProgramId(rawId: string) {
 
 export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
   const { navigate } = useRouter();
+  const { session } = useAuth();
+  const isAdmin = session?.user.role === "ADMIN";
+  // Админа «назад в каталог» должно возвращать в админский каталог,
+  // иначе роутер тут же перекинет его обратно.
+  const catalogPath = getDefaultPathForRole(isAdmin ? "ADMIN" : "USER");
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [reloadToken, setReloadToken] = useState(0);
   // StrictMode монтирует эффект дважды, а Retry перезапускает загрузку —
@@ -106,12 +114,18 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
           ? `${formatProgramType(program.type)} · ${program.country}`
           : "Program details."
       }
-      navigation={<MobileBottomNav currentRoute="programs" />}
+      navigation={
+        isAdmin ? (
+          <AdminTabs currentRoute="adminPrograms" />
+        ) : (
+          <MobileBottomNav currentRoute="programs" />
+        )
+      }
     >
       <div className="detail-actions">
         <button
           className="secondary-button"
-          onClick={() => navigate("/programs")}
+          onClick={() => navigate(catalogPath)}
           type="button"
         >
           ← Back to catalog

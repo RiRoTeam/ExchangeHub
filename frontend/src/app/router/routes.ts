@@ -56,7 +56,8 @@ export const appRoutes: AppRouteDefinition[] = [
     key: "programDetail",
     path: "/programs/:id",
     title: "Program",
-    scope: "user",
+    // Карточку открывают обе роли: админ приходит сюда из своего каталога.
+    scope: "authenticated",
     navigationLabel: "program",
     hiddenInNav: true
   },
