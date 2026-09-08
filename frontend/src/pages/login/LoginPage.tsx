@@ -3,6 +3,8 @@ import { Trans, useTranslation } from "react-i18next";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { useRouter } from "../../app/router/RouterProvider";
 import { getDefaultPathForRole } from "../../app/router/routes";
+import { validateAuthForm } from "../../entities/auth/validation";
+import { toLocalizedMessage } from "../../shared/i18n/message";
 import { LoginForm } from "../../features/auth/login-form/LoginForm";
 import { RegisterForm } from "../../features/auth/register-form/RegisterForm";
 import type { AuthMode } from "../../shared/types/auth";
@@ -25,39 +27,6 @@ const authCopyKeys: Record<AuthMode, { title: string; subtitle: string; submit: 
   }
 };
 
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-}
-
-/** Возвращает ключ перевода или пустую строку, если всё в порядке. */
-function validateAuthForm(mode: AuthMode, email: string, name: string, password: string) {
-  if (!email.trim()) {
-    return "validation.enterEmail";
-  }
-
-  if (!isValidEmail(email)) {
-    return "validation.invalidEmail";
-  }
-
-  if (mode === "user-register" && !name.trim()) {
-    return "validation.enterName";
-  }
-
-  if (mode === "user-register" && (name.trim().length < 2 || name.trim().length > 100)) {
-    return "validation.nameLength";
-  }
-
-  if (!password.trim()) {
-    return "validation.enterPassword";
-  }
-
-  if (password.length < 6 || password.length > 72) {
-    return "validation.passwordLength";
-  }
-
-  return "";
-}
-
 export function LoginPage() {
   const { t } = useTranslation();
   const { signIn } = useAuth();
@@ -77,10 +46,10 @@ export function LoginPage() {
   const copyKeys = authCopyKeys[mode];
 
   async function handleSubmit() {
-    const validationError = validateAuthForm(mode, email, name, password);
+    const validationError = validateAuthForm(mode, { email, name, password });
 
     if (validationError) {
-      setError(t(validationError as never, { min: 2, max: 100 }));
+      setError(t(validationError.key as never, validationError.params));
       return;
     }
 
@@ -99,12 +68,11 @@ export function LoginPage() {
         replace: true
       });
     } catch (submitError) {
-      // AuthProvider кладёт в message ключ перевода.
-      setError(
-        submitError instanceof Error
-          ? t(submitError.message as never, { min: 6, max: 72 })
-          : t("errors.generic")
-      );
+      // AuthProvider бросает LocalizedError: ключ перевода вместе с числами,
+      // которые в этот ключ подставляются.
+      const detail = toLocalizedMessage(submitError);
+
+      setError(t(detail.key as never, detail.params));
     } finally {
       setIsSubmitting(false);
     }
