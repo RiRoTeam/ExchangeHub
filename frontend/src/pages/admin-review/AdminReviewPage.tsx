@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
-import {
-  listPendingSubmissions,
-  reviewSubmission
-} from "../../entities/submission/api";
-import type { Submission } from "../../shared/types/submission";
+import { useCallback, useEffect, useState } from "react";
+import { listPendingSubmissions } from "../../entities/submission/api";
 import { toFriendlyApiError } from "../../shared/api/problem";
+import type { Submission } from "../../shared/types/submission";
 import { SubmissionReviewActions } from "../../features/submission/review/SubmissionReviewActions";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { AppShell } from "../../widgets/app-shell/AppShell";
@@ -13,79 +10,116 @@ import { SubmissionList } from "../../widgets/submission-list/SubmissionList";
 export function AdminReviewPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingId, setPendingId] = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [lastDecision, setLastDecision] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setIsLoading(true);
-    setError("");
+    const abortController = new AbortController();
+    let isActive = true;
 
-    listPendingSubmissions(controller.signal)
-      .then(setSubmissions)
-      .catch((loadError) => {
-        if (!controller.signal.aborted) {
-          setError(toFriendlyApiError(loadError, "We couldn’t load the moderation queue."));
+    async function loadQueue() {
+      setIsLoading(true);
+      setLoadError("");
+
+      try {
+        const pending = await listPendingSubmissions(abortController.signal);
+
+        if (isActive) {
+          setSubmissions(pending);
         }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
+      } catch (error) {
+        if (abortController.signal.aborted || !isActive) {
+          return;
+        }
+
+        setSubmissions([]);
+        setLoadError(toFriendlyApiError(error, "We couldn’t load the moderation queue."));
+      } finally {
+        if (isActive) {
           setIsLoading(false);
         }
-      });
+      }
+    }
 
-    return () => controller.abort();
+    void loadQueue();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+    };
   }, [reloadToken]);
 
-  async function handleReview(
-    submission: Submission,
-    status: "APPROVED" | "REJECTED",
-    comment?: string
-  ) {
-    setPendingId(submission.id);
-    setError("");
-    try {
-      await reviewSubmission(submission.id, status, comment);
-      setSubmissions((current) => current.filter((item) => item.id !== submission.id));
-    } catch (reviewError) {
-      setError(toFriendlyApiError(reviewError, "We couldn’t save this review decision."));
-    } finally {
-      setPendingId(null);
+  const reload = useCallback(() => {
+    setReloadToken((current) => current + 1);
+  }, []);
+
+  const handleReviewed = useCallback((reviewed: Submission) => {
+    // Убираем только после ответа сервера: при одобрении он ещё и создаёт
+    // программу в каталоге, оптимистично такое скрывать нельзя.
+    setSubmissions((current) => current.filter((item) => item.id !== reviewed.id));
+    setLastDecision(
+      reviewed.status === "APPROVED"
+        ? `“${reviewed.title}” is published in the catalog.`
+        : `“${reviewed.title}” was rejected. The author will see your comment.`
+    );
+  }, []);
+
+  function describeQueue() {
+    if (loadError) {
+      return "The queue is temporarily unavailable.";
     }
+
+    if (isLoading) {
+      return "Loading the moderation queue...";
+    }
+
+    if (submissions.length === 0) {
+      return "Nothing waiting for review";
+    }
+
+    return `${submissions.length} ${submissions.length === 1 ? "submission" : "submissions"} waiting`;
   }
 
   return (
     <AppShell
       title="Admin / review programs"
-      description="Review pending community submissions and publish suitable programs."
+      description="Community submissions waiting for a decision. Approving publishes the program to the catalog."
       navigation={<AdminTabs currentRoute="adminReview" />}
     >
       <section className="programs-page__header">
         <div>
           <h2>Moderation queue</h2>
-          <p>{isLoading ? "Loading submissions..." : `${submissions.length} pending`}</p>
+          <p>{describeQueue()}</p>
         </div>
+        <button className="secondary-button" disabled={isLoading} onClick={reload} type="button">
+          Refresh
+        </button>
       </section>
 
-      {error ? (
+      <div aria-live="polite">
+        {lastDecision ? (
+          <p className="form-feedback__success review-page__decision">{lastDecision}</p>
+        ) : null}
+      </div>
+
+      {loadError ? (
         <div className="error-banner">
-          <p>{error}</p>
-          <button className="secondary-button" onClick={() => setReloadToken((value) => value + 1)} type="button">
-            Reload queue
+          <p>{loadError}</p>
+          <button className="secondary-button" onClick={reload} type="button">
+            Retry
           </button>
         </div>
-      ) : null}
-
-      {isLoading ? (
-        <div className="placeholder-card">Loading submissions...</div>
+      ) : isLoading ? (
+        <div className="placeholder-card">Loading the moderation queue...</div>
       ) : (
         <SubmissionList
-          emptyMessage="The moderation queue is clear."
+          emptyMessage="The queue is empty. New community submissions will show up here."
           renderActions={(submission) => (
             <SubmissionReviewActions
-              disabled={pendingId !== null}
-              onReview={(status, comment) => handleReview(submission, status, comment)}
+              onReviewed={handleReviewed}
+              onStale={reload}
+              submission={submission}
             />
           )}
           showAuthor
