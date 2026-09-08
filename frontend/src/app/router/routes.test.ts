@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adminRoutes,
+  guestRoutes,
   appRoutes,
   buildPath,
   findRouteByPath,
@@ -117,6 +118,33 @@ describe("навигационные списки", () => {
   it("страница логина в навигацию залогиненных не попадает", () => {
     expect(userRoutes.some((route) => route.key === "login")).toBe(false);
     expect(adminRoutes.some((route) => route.key === "login")).toBe(false);
+  });
+
+  it("гостю доступны каталог и вход, и ничего больше", () => {
+    expect(guestRoutes.map((route) => route.key)).toEqual(["programs", "login"]);
+  });
+
+  it("каталог у гостя идёт раньше кнопки входа", () => {
+    // Человек приходит по QR-коду смотреть программы, а не логиниться.
+    expect(guestRoutes[0].key).toBe("programs");
+  });
+
+  it("закрытые страницы гостю не показываются", () => {
+    for (const key of ["favorites", "suggestProgram", "profile", "adminPrograms"]) {
+      expect(guestRoutes.some((route) => route.key === key)).toBe(false);
+    }
+  });
+
+  it("каталог и карточка программы открыты без входа", () => {
+    const catalog = findRouteByPath("/programs");
+    const detail = findRouteByPath("/programs/7");
+
+    expect(catalog?.route.scope).toBe("guest");
+    expect(detail?.route.scope).toBe("guest");
+  });
+
+  it("админский каталог гостю не подмешивается", () => {
+    expect(guestRoutes.some((route) => route.scope === "admin")).toBe(false);
   });
 
   it("ключи маршрутов уникальны", () => {

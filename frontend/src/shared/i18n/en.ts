@@ -27,6 +27,13 @@ export const en = {
     analytics: "analytics"
   },
 
+  guest: {
+    title: "The catalog is open to everyone",
+    description:
+      "Browse programs without an account. Sign in to save them to favorites and suggest your own.",
+    signIn: "Sign in"
+  },
+
   routeStatus: {
     openingTitle: "Opening ExchangeHub",
     openingMessage: "We’re restoring your session and preparing the app.",

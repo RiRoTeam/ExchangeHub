@@ -4,6 +4,7 @@ import { ApiError } from "../../shared/api/http";
 import type { ProgramType } from "../../shared/types/program";
 import { useDebouncedValue } from "../../shared/lib/useDebouncedValue";
 import { listPrograms, PROGRAMS_PAGE_SIZE, type ProgramPage } from "../../entities/program/api";
+import { GuestNotice } from "../../features/auth/guest-notice/GuestNotice";
 import { ProgramFilters } from "../../features/program/filters/ProgramFilters";
 import { ProgramSearch } from "../../features/program/search/ProgramSearch";
 import { AppShell } from "../../widgets/app-shell/AppShell";
@@ -185,6 +186,8 @@ export function ProgramsPage() {
           <p>{describeResults()}</p>
         </div>
       </section>
+
+      <GuestNotice />
 
       {error ? (
         <div className="error-banner">
