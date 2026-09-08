@@ -136,6 +136,24 @@ class UserServiceTest {
         assertThat(stalePrincipal.getRole()).isEqualTo(Role.ADMIN);
         verify(userRepository).save(persistedUser);
         verify(userRepository, never()).save(stalePrincipal);
+        verifyNoInteractions(refreshTokenService);
+    }
+
+    @Test
+    void updateProfile_passwordChangeRevokesRefreshTokens() {
+        var principal = user(7L, "person@example.com", Role.USER);
+        when(userRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(principal));
+        when(passwordEncoder.matches("old-password", "encoded-password")).thenReturn(true);
+        when(passwordEncoder.encode("new-password")).thenReturn("new-encoded-password");
+
+        userService.updateProfile(
+                principal,
+                new UpdateProfileRequest(null, "old-password", "new-password")
+        );
+
+        assertThat(principal.getPassword()).isEqualTo("new-encoded-password");
+        verify(userRepository).save(principal);
+        verify(refreshTokenService).revokeAllByUser(principal);
     }
 
     private static User user(Long id, String email, Role role) {
