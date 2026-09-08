@@ -64,7 +64,8 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "User not found: " + principal.getId()));
 
-        if (request.newPassword() != null) {
+        boolean passwordChanged = request.newPassword() != null;
+        if (passwordChanged) {
             if (request.currentPassword() == null ||
                     !passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
                 throw new BadRequestException("Wrong current password");
@@ -77,6 +78,9 @@ public class UserService {
         }
 
         userRepository.save(user);
+        if (passwordChanged) {
+            refreshTokenService.revokeAllByUser(user);
+        }
         return new UserMeResponse(user.getId(), user.getEmail(), user.getName(), user.getRole());
     }
 

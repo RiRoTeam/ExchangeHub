@@ -16,11 +16,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Query("SELECT t FROM RefreshToken t WHERE t.token = :token")
     Optional<RefreshToken> findByTokenForUpdate(String token);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE RefreshToken t SET t.revoked = true WHERE t.user = :user AND t.revoked = false")
     void revokeAllByUser(User user);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE RefreshToken t SET t.revoked = true WHERE t.token = :token AND t.revoked = false")
     int revokeByToken(String token);
 }
