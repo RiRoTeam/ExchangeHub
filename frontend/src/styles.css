@@ -295,8 +295,15 @@ a {
   gap: 18px;
 }
 
+.page-shell__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .page-shell__eyebrow {
-  margin: 0 0 8px;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--color-text-soft);
@@ -1327,4 +1334,208 @@ a {
 
 .guest-notice .primary-button {
   flex-shrink: 0;
+}
+
+
+/* ── Мобильная раскладка ───────────────────────────────────────────────────── */
+
+/* Сворачиваемые фильтры. На широком экране кнопки нет, а правило схлопывания
+   не действует, поэтому состояние из React там ни на что не влияет. */
+.filter-sidebar__toggle {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .filter-sidebar__heading {
+    display: none;
+  }
+
+  .filter-sidebar__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: var(--color-surface);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .filter-sidebar__chevron {
+    color: var(--color-text-soft);
+    font-size: 0.75rem;
+  }
+
+  .filter-sidebar__content--collapsed {
+    display: none;
+  }
+
+  /* Панель навигации прилипает к низу экрана: каталог длинный, и возвращаться
+     за меню наверх на телефоне неудобно. */
+  .mobile-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    width: auto;
+    padding: 8px 10px;
+    /* Вырез и жест «домой» на iPhone: без этого нижний ряд под ними. */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+    box-shadow: 0 -10px 28px var(--color-shadow);
+  }
+
+  .mobile-nav__list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .mobile-nav__button {
+    width: 100%;
+    min-height: 48px;
+    padding: 6px 4px;
+    font-size: 0.78rem;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  /* Место под закреплённую панель, иначе она накрывает последнюю карточку. */
+  .page-shell {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Шапка: вкладки занимают всю ширину, переключатель языка уходит на свою
+     строку. Во флекс-строке блок вкладок сжимался по содержимому, а
+     переключатель вставал сбоку и налезал на них. */
+  .page-shell__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-shell__navigation {
+    width: 100%;
+  }
+
+  /* Админских вкладок шесть — в один столбик это целый экран. */
+  .nav-tabs__list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .nav-tabs__button {
+    min-height: 48px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  /* Кнопки действий в карточке: во флекс-строке width: 100% считается от
+     флекс-базиса, поэтому они получались разной ширины. */
+  .action-strip {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Шапка занимала пол-экрана до первой карточки. */
+  .page-shell {
+    padding-top: 18px;
+  }
+
+  .page-shell__header {
+    gap: 12px;
+  }
+
+  .page-shell__heading h1 {
+    font-size: 1.7rem;
+  }
+
+  .page-shell__heading p {
+    margin-top: 8px;
+    font-size: 0.95rem;
+  }
+
+  /* Фильтры и так лежат в карточке — обёртка давала вторую рамку вокруг неё. */
+  .page-shell__aside {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .filter-sidebar {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .page-shell__main {
+    padding: 16px;
+  }
+
+  .page-shell__content {
+    margin-top: 16px;
+  }
+
+  .program-list__card,
+  .placeholder-card,
+  .placeholder-form {
+    padding: 18px;
+  }
+
+  /* Заголовок и значки в карточке: в строку они не помещаются. */
+  .program-list__heading,
+  .submission-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .program-list__actions {
+    flex-wrap: wrap;
+  }
+
+  .programs-page__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  /* Заголовок программы переносится на две строки, и значки рядом с ним
+     выстраивались в столбик. Уводим их под заголовок в строку. */
+  .program-detail__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .program-detail__header .program-badges {
+    flex-wrap: wrap;
+  }
+
+  .program-detail {
+    padding: 18px;
+  }
+
+
+  .guest-notice {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+  }
+
+  /* Пагинация: страницы остаются кнопками нормального размера под палец. */
+  .pagination__page,
+  .pagination__step {
+    min-width: 44px;
+  }
 }
