@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../../app/providers/AuthProvider";
 import { useFavorites } from "../../../app/providers/FavoritesProvider";
 import type { Program } from "../../../shared/types/program";
 
@@ -25,13 +26,20 @@ function HeartIcon({ filled }: { filled: boolean }) {
 
 export function ToggleFavoriteButton({ program, size = "compact" }: ToggleFavoriteButtonProps) {
   const { t } = useTranslation();
+  const { status: authStatus } = useAuth();
   const { status, isFavorite, isPending, toggleFavorite } = useFavorites();
 
+  // Избранное требует авторизации: анониму кнопка не нужна, она бы только
+  // упёрлась в 401.
   const active = isFavorite(program.id);
   const pending = isPending(program.id) || status === "loading" || status === "idle";
   const label = active
     ? t("favorites.remove", { title: program.title })
     : t("favorites.add", { title: program.title });
+
+  if (authStatus !== "authenticated") {
+    return null;
+  }
 
   return (
     <button

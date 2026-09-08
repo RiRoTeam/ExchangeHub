@@ -1,9 +1,10 @@
 /**
  * public        — только для анонимов (страница логина)
+ * guest         — для всех, включая анонимов: каталог открывается по ссылке
  * user / admin  — только для своей роли
  * authenticated — для любого залогиненного, роль не важна
  */
-export type RouteScope = "public" | "user" | "admin" | "authenticated";
+export type RouteScope = "public" | "guest" | "user" | "admin" | "authenticated";
 
 export type AppRouteKey =
   | "login"
@@ -40,25 +41,20 @@ export type RouteMatch = {
 
 export const appRoutes: AppRouteDefinition[] = [
   {
-    key: "login",
-    path: "/login",
-    title: "Login",
-    scope: "public",
-    navigationLabel: "nav.login"
-  },
-  {
     key: "programs",
     path: "/programs",
     title: "All programs",
-    scope: "user",
+    // Каталог открыт всем: ссылку с QR-кода читают без регистрации.
+    scope: "guest",
     navigationLabel: "nav.allPrograms"
   },
   {
     key: "programDetail",
     path: "/programs/:id",
     title: "Program",
-    // Карточку открывают обе роли: админ приходит сюда из своего каталога.
-    scope: "authenticated",
+    // Открыта всем, как и каталог: ссылка на конкретную программу должна
+    // работать без входа.
+    scope: "guest",
     navigationLabel: "nav.allPrograms",
     hiddenInNav: true
   },
@@ -117,6 +113,14 @@ export const appRoutes: AppRouteDefinition[] = [
     title: "Profile",
     scope: "authenticated",
     navigationLabel: "nav.profile"
+  },
+  // Логин идёт последним: в гостевой навигации первым должен стоять каталог.
+  {
+    key: "login",
+    path: "/login",
+    title: "Login",
+    scope: "public",
+    navigationLabel: "nav.login"
   }
 ];
 
@@ -235,11 +239,27 @@ function navigable(scope: RouteScope) {
 
     // Страницы для любого залогиненного видны в обеих навигациях —
     // иначе админу неоткуда узнать, что у него есть профиль (и выход).
-    return route.scope === "authenticated" && (scope === "user" || scope === "admin");
+    if (route.scope === "authenticated") {
+      return scope === "user" || scope === "admin";
+    }
+
+    // Общедоступный каталог нужен и гостю, и пользователю. Админу — нет:
+    // у него на этом месте свой каталог с черновиками.
+    if (route.scope === "guest") {
+      return scope === "user";
+    }
+
+    // Кнопка входа осмысленна только для гостя.
+    if (route.scope === "public") {
+      return scope === "guest";
+    }
+
+    return false;
   });
 }
 
 export const publicRoutes = navigable("public");
+export const guestRoutes = navigable("guest");
 export const userRoutes = navigable("user");
 export const adminRoutes = navigable("admin");
 

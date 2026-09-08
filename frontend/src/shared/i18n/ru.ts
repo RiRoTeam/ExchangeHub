@@ -33,6 +33,13 @@ export const ru = {
     analytics: "аналитика"
   },
 
+  guest: {
+    title: "Каталог открыт всем",
+    description:
+      "Программы можно смотреть без регистрации. Войдите, чтобы сохранять их в избранное и предлагать свои.",
+    signIn: "Войти"
+  },
+
   routeStatus: {
     openingTitle: "Открываем ExchangeHub",
     openingMessage: "Восстанавливаем вашу сессию и готовим приложение.",

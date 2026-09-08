@@ -1297,3 +1297,34 @@ a {
   color: #ffffff;
   font-weight: 700;
 }
+
+/* ── Гостевой режим ────────────────────────────────────────────────────────── */
+
+.guest-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface-muted);
+}
+
+.guest-notice h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.guest-notice p {
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.6;
+  color: var(--color-text-soft);
+}
+
+.guest-notice .primary-button {
+  flex-shrink: 0;
+}

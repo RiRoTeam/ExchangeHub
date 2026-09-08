@@ -10,6 +10,7 @@ import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
 import { useRouter } from "../../app/router/RouterProvider";
+import { GuestNotice } from "../../features/auth/guest-notice/GuestNotice";
 import { AppShell } from "../../widgets/app-shell/AppShell";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
@@ -128,6 +129,8 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
           {t("programs.backToCatalog")}
         </button>
       </div>
+
+      <GuestNotice />
 
       {state.kind === "loading" ? <div className="placeholder-card">{t("common.loading")}</div> : null}
 

@@ -60,15 +60,21 @@ export function AppRouter() {
   let redirectPath: string | null = null;
 
   if (pathname === "/") {
+    // Аноним попадает в каталог, а не на логин: по QR-коду с корня приложения
+    // человек должен сразу увидеть программы.
     redirectPath = isAuthenticated && session
       ? getDefaultPathForRole(session.user.role)
-      : "/login";
+      : "/programs";
   } else if (matchedRoute) {
     if (matchedRoute.scope === "public" && isAuthenticated && session) {
       redirectPath = getDefaultPathForRole(session.user.role);
     }
 
-    if (matchedRoute.scope !== "public" && status === "anonymous") {
+    if (
+      matchedRoute.scope !== "public" &&
+      matchedRoute.scope !== "guest" &&
+      status === "anonymous"
+    ) {
       redirectPath = "/login";
     }
 
