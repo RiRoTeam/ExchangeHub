@@ -14,7 +14,8 @@ import {
   refreshAuthTokens,
   revokeRefreshToken
 } from "../../entities/auth/api";
-import { AdminAccessRequiredError, toAuthErrorKey } from "../../entities/auth/errors";
+import { AdminAccessRequiredError, toAuthErrorMessage } from "../../entities/auth/errors";
+import { LocalizedError } from "../../shared/i18n/message";
 import {
   clearStoredSession,
   readStoredSession,
@@ -256,7 +257,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       resetSession();
       // В message кладём ключ перевода: показывать текст будет LoginPage.
-      throw new Error(toAuthErrorKey(error, payload.mode));
+      throw new LocalizedError(toAuthErrorMessage(error, payload.mode));
     }
   }
 

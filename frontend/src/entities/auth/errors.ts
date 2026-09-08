@@ -1,5 +1,6 @@
 import { ApiError } from "../../shared/api/http";
 import { readProblem } from "../../shared/api/problem";
+import { message, type Message } from "../../shared/i18n/message";
 import type { AuthMode } from "../../shared/types/auth";
 
 export class AdminAccessRequiredError extends Error {
@@ -9,87 +10,104 @@ export class AdminAccessRequiredError extends Error {
   }
 }
 
+/** «size must be between 6 and 72» — стандартный текст @Size из Bean Validation. */
+const SIZE_RANGE = /size must be between (\d+) and (\d+)/;
+
+/** Верхняя граница, которую Hibernate Validator подставляет, когда max не задан. */
+const NO_UPPER_BOUND = 2147483647;
+
+const BLANK_MESSAGES = ["must not be blank", "must not be null", "не должно быть пустым"];
+
 /**
- * Возвращает КЛЮЧ перевода, а не готовый текст: сообщение показывается в
- * компоненте, который знает про текущий язык, а этот модуль — нет.
+ * Сообщение для одной ошибки поля.
+ *
+ * Границы берём из ответа сервера, а не из констант фронтенда: тогда текст не
+ * может разойтись с тем, что на самом деле проверяет бэкенд.
  */
-function toFieldErrorKey(field: string, message: string) {
-  if (message === "must not be blank" || message === "не должно быть пустым") {
+function toFieldMessage(field: string, detail: string): Message | null {
+  if (BLANK_MESSAGES.includes(detail)) {
     if (field === "email") {
-      return "validation.enterEmail";
+      return message("validation.enterEmail");
     }
 
     if (field === "name") {
-      return "validation.enterName";
+      return message("validation.enterName");
     }
 
-    return "validation.enterPassword";
+    return message("validation.enterPassword");
   }
 
-  if (field === "email" && message.toLowerCase().includes("email")) {
-    return "validation.invalidEmail";
+  if (field === "email" && detail.toLowerCase().includes("email")) {
+    return message("validation.invalidEmail");
   }
 
-  if (field === "name" && message.includes("size must be between 2 and 100")) {
-    return "validation.nameLength";
+  const range = SIZE_RANGE.exec(detail);
+
+  if (range) {
+    const min = Number(range[1]);
+    const max = Number(range[2]);
+
+    if (field === "name") {
+      return message("validation.nameLength", { min, max });
+    }
+
+    if (max === NO_UPPER_BOUND) {
+      return message("validation.passwordMin", { min });
+    }
+
+    return message("validation.passwordLength", { min, max });
   }
 
-  if (field === "password" && message.includes("size must be between 6 and 72")) {
-    return "validation.passwordLength";
-  }
-
-  if (message === "size must be between 6 and 2147483647") {
-    return "validation.passwordMin";
-  }
-
-  return "";
+  return null;
 }
 
-/** Ключ перевода для ошибки входа или регистрации. */
-export function toAuthErrorKey(error: unknown, mode: AuthMode) {
+/** Сообщение для ошибки входа или регистрации. */
+export function toAuthErrorMessage(error: unknown, mode: AuthMode): Message {
   if (error instanceof AdminAccessRequiredError) {
-    return "errors.adminRequired";
+    return message("errors.adminRequired");
   }
 
   if (error instanceof ApiError) {
     const problem = readProblem(error);
 
     if (problem.errors) {
-      const firstError = Object.entries(problem.errors)[0];
+      // Порядок ключей в объекте не гарантирован, поэтому берём первое поле,
+      // для которого у нас есть понятный текст, а не первое попавшееся.
+      for (const [field, detail] of Object.entries(problem.errors)) {
+        const fieldMessage = toFieldMessage(field, detail);
 
-      if (firstError) {
-        const key = toFieldErrorKey(firstError[0], firstError[1]);
-
-        if (key) {
-          return key;
+        if (fieldMessage) {
+          return fieldMessage;
         }
       }
     }
 
     if (error.status === 400) {
-      return "validation.fixFields";
+      return message("validation.fixFields");
     }
 
     if (error.status === 401) {
-      return mode === "admin-login" ? "errors.badAdminCredentials" : "errors.badCredentials";
+      return message(
+        mode === "admin-login" ? "errors.badAdminCredentials" : "errors.badCredentials"
+      );
     }
 
     if (error.status === 409) {
-      return "errors.emailTaken";
+      return message("errors.emailTaken");
     }
 
     if (error.status === 429) {
-      return "errors.tooManyRequests";
+      return message("errors.tooManyRequests");
     }
 
     if (error.status >= 500) {
-      return "errors.server";
+      return message("errors.server");
     }
   }
 
   if (error instanceof TypeError) {
-    return "errors.network";
+    return message("errors.network");
   }
 
-  return "errors.generic";
+  return message("errors.generic");
 }

@@ -161,9 +161,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
           <header className="program-detail__header">
             <h2>{program.title}</h2>
             <div className="program-badges">
-              {session?.user.role === "USER" ? (
-                <ToggleFavoriteButton program={program} size="large" />
-              ) : null}
+              <ToggleFavoriteButton program={program} size="large" />
               <ProgramBadges program={program} />
               {/* ACTIVE не показываем: каталог отдаёт только активные программы,
                   так что плашка была бы на каждой карточке и ничего не значила.

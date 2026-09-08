@@ -147,6 +147,26 @@ describe("навигационные списки", () => {
     expect(guestRoutes.some((route) => route.scope === "admin")).toBe(false);
   });
 
+  it("избранное есть в обеих навигациях", () => {
+    expect(userRoutes.some((route) => route.key === "favorites")).toBe(true);
+    expect(adminRoutes.some((route) => route.key === "favorites")).toBe(true);
+  });
+
+  it("гостю избранное не показывается", () => {
+    expect(guestRoutes.some((route) => route.key === "favorites")).toBe(false);
+  });
+
+  it("админские вкладки идут раньше избранного и профиля", () => {
+    const keys = adminRoutes.map((route) => route.key);
+
+    expect(keys.indexOf("adminAnalytics")).toBeLessThan(keys.indexOf("favorites"));
+    expect(keys.indexOf("favorites")).toBeLessThan(keys.indexOf("profile"));
+  });
+
+  it("у пользователя каталог остаётся первым", () => {
+    expect(userRoutes[0].key).toBe("programs");
+  });
+
   it("ключи маршрутов уникальны", () => {
     const keys = appRoutes.map((route) => route.key);
     expect(new Set(keys).size).toBe(keys.length);
