@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode
 } from "react";
@@ -31,15 +32,26 @@ type FavoritesContextValue = {
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const { status: authStatus } = useAuth();
+  const { status: authStatus, session } = useAuth();
   const [status, setStatus] = useState<FavoritesStatus>("idle");
   const [programs, setPrograms] = useState<Program[]>([]);
   const [pendingIds, setPendingIds] = useState<number[]>([]);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const sessionGenerationRef = useRef(0);
+  const sessionOwnerRef = useRef<number | null>(null);
+  const mutationRevisionRef = useRef(0);
 
   useEffect(() => {
+    const ownerId = authStatus === "authenticated" ? session?.user.id ?? null : null;
+    if (sessionOwnerRef.current !== ownerId) {
+      sessionOwnerRef.current = ownerId;
+      sessionGenerationRef.current += 1;
+      mutationRevisionRef.current += 1;
+      setPendingIds([]);
+    }
+
     if (authStatus !== "authenticated") {
       // Разлогинились — чужое избранное показывать нельзя.
       setPrograms([]);
@@ -51,6 +63,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
 
     const abortController = new AbortController();
     let isActive = true;
+    const revisionAtLoadStart = mutationRevisionRef.current;
 
     async function loadFavorites() {
       setStatus("loading");
@@ -60,7 +73,11 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         const nextPrograms = await listFavorites(abortController.signal);
 
         if (isActive) {
-          setPrograms(nextPrograms);
+          // A mutation may complete while this request is in flight. Never let
+          // its older snapshot overwrite the optimistic, server-confirmed UI.
+          if (mutationRevisionRef.current === revisionAtLoadStart) {
+            setPrograms(nextPrograms);
+          }
           setStatus("ready");
         }
       } catch (error) {
@@ -80,7 +97,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isActive = false;
       abortController.abort();
     };
-  }, [authStatus, reloadToken]);
+  }, [authStatus, reloadToken, session?.user.id]);
 
   const favoriteIds = useMemo(
     () => new Set(programs.map((program) => program.id)),
@@ -100,7 +117,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const toggleFavorite = useCallback(
     async (program: Program) => {
       const shouldRemove = favoriteIds.has(program.id);
-      const previousPrograms = programs;
+      const generation = sessionGenerationRef.current;
+      mutationRevisionRef.current += 1;
 
       setActionError("");
       setPendingIds((current) => [...current, program.id]);
@@ -119,20 +137,32 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
           await addFavorite(program.id);
         }
       } catch (error) {
-        setPrograms(previousPrograms);
-        setActionError(
-          toFriendlyApiError(
-            error,
+        if (sessionGenerationRef.current === generation) {
+          // Roll back only this program. Restoring a whole stale snapshot could
+          // erase another favorite request that completed in parallel.
+          setPrograms((current) =>
             shouldRemove
-              ? "We couldn’t remove this program from your favorites."
-              : "We couldn’t add this program to your favorites."
-          )
-        );
+              ? current.some((item) => item.id === program.id)
+                ? current
+                : [program, ...current]
+              : current.filter((item) => item.id !== program.id)
+          );
+          setActionError(
+            toFriendlyApiError(
+              error,
+              shouldRemove
+                ? "We couldn’t remove this program from your favorites."
+                : "We couldn’t add this program to your favorites."
+            )
+          );
+        }
       } finally {
-        setPendingIds((current) => current.filter((id) => id !== program.id));
+        if (sessionGenerationRef.current === generation) {
+          setPendingIds((current) => current.filter((id) => id !== program.id));
+        }
       }
     },
-    [favoriteIds, programs]
+    [favoriteIds]
   );
 
   const reload = useCallback(() => {

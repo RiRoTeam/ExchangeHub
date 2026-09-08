@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 import static com.temka.app.repository.ProgramSpecifications.activeCatalog;
+import static com.temka.app.repository.ProgramSpecifications.adminCatalog;
 
 @Service
 @RequiredArgsConstructor
@@ -49,8 +50,24 @@ public class ProgramService {
     }
 
     @Transactional(readOnly = true)
+    public Page<ProgramDto> listForAdmin(
+            ProgramStatus status,
+            ProgramType type,
+            String country,
+            String q,
+            int page,
+            int size,
+            String sort
+    ) {
+        var pageable = pageRequest(page, size, sort);
+        return programRepository
+                .findAll(adminCatalog(status, type, country, q), pageable)
+                .map(this::toDto);
+    }
+
+    @Transactional(readOnly = true)
     public ProgramDto getById(Long id) {
-        return toDto(findOrThrow(id));
+        return toDto(findActiveOrThrow(id));
     }
 
     @Transactional
@@ -88,6 +105,11 @@ public class ProgramService {
 
     private Program findOrThrow(Long id) {
         return programRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Program not found: " + id));
+    }
+
+    private Program findActiveOrThrow(Long id) {
+        return programRepository.findByIdAndStatus(id, ProgramStatus.ACTIVE)
                 .orElseThrow(() -> new EntityNotFoundException("Program not found: " + id));
     }
 

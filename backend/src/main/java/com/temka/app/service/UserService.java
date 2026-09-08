@@ -74,7 +74,11 @@ public class UserService {
         }
 
         if (request.name() != null) {
-            user.setName(request.name());
+            String name = request.name().trim();
+            if (name.length() < 2) {
+                throw new BadRequestException("Name must contain at least 2 non-whitespace characters");
+            }
+            user.setName(name);
         }
 
         userRepository.save(user);

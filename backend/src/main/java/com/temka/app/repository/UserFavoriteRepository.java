@@ -14,6 +14,7 @@ public interface UserFavoriteRepository extends JpaRepository<UserFavorite, User
     @Query("""
             SELECT f.program FROM UserFavorite f
             WHERE f.user.id = :userId
+              AND f.program.status = com.temka.app.entity.ProgramStatus.ACTIVE
             ORDER BY f.createdAt DESC
             """)
     List<Program> findFavoritePrograms(Long userId);

@@ -46,12 +46,12 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "127.0.0.1:3000:80"
+      - "127.0.0.1:3000:8080"
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10

@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  registerAuthBridge,
+  unregisterAuthBridge,
+  type AuthBridge
+} from "../../shared/api/authBridge";
 import type { Program } from "../../shared/types/program";
-import { listPrograms, PROGRAMS_PAGE_SIZE } from "./api";
+import {
+  deleteProgram,
+  listAdminPrograms,
+  listPrograms,
+  PROGRAMS_PAGE_SIZE,
+  recordProgramEvent
+} from "./api";
 
 const program: Program = {
   id: 42,
@@ -36,9 +47,9 @@ function programPage(content: Program[], meta: Partial<{
   };
 }
 
-function jsonResponse(body: unknown) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { "Content-Type": "application/json" }
   });
 }
@@ -111,17 +122,77 @@ describe("entities/program/api", () => {
     });
   });
 
-  it("переживает плоский конверт, если режим сериализации на бэке поменяют", async () => {
-    // Без запасного пути счётчик показал бы undefined.
+  it("поддерживает старый плоский конверт Spring с метаданными в корне", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValueOnce(jsonResponse({ content: [program] }))
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          content: [program],
+          size: 5,
+          number: 2,
+          totalElements: 17,
+          totalPages: 4
+        })
+      )
     );
 
-    await expect(listPrograms({})).resolves.toMatchObject({
+    await expect(listPrograms({})).resolves.toEqual({
       programs: [program],
-      totalElements: 1,
-      totalPages: 1
+      page: 2,
+      size: 5,
+      totalElements: 17,
+      totalPages: 4
     });
+  });
+
+  it("не выдумывает счётчики, если бэк прислал страницу без метаданных", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(jsonResponse({ content: [program] })));
+
+    await expect(listPrograms({})).rejects.toThrow(/pagination metadata/);
+  });
+
+  it("записывает VIEW/CLICK через публичный endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await recordProgramEvent(program.id, "VIEW");
+    await recordProgramEvent(program.id, "CLICK");
+
+    for (const [index, type] of ["VIEW", "CLICK"].entries()) {
+      const [url, init] = fetchMock.mock.calls[index] as [string, RequestInit];
+      expect(url).toBe(`/api/programs/${program.id}/events`);
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(init.body as string)).toEqual({ type });
+    }
+  });
+
+  it("admin list и delete используют защищённые endpoints", async () => {
+    const bridge: AuthBridge = {
+      getAccessToken: () => "admin-token",
+      refreshAccessToken: async () => null,
+      onSessionExpired: () => {}
+    };
+    registerAuthBridge(bridge);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(programPage([program])))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(listAdminPrograms({ page: 1, size: 6 })).resolves.toMatchObject({
+        programs: [program]
+      });
+      await deleteProgram(program.id);
+
+      expect(fetchMock.mock.calls[0][0]).toBe("/api/admin/programs?page=1&size=6");
+      expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Authorization")).toBe(
+        "Bearer admin-token"
+      );
+      expect(fetchMock.mock.calls[1][0]).toBe(`/api/admin/programs/${program.id}`);
+      expect(fetchMock.mock.calls[1][1]?.method).toBe("DELETE");
+    } finally {
+      unregisterAuthBridge(bridge);
+    }
   });
 });

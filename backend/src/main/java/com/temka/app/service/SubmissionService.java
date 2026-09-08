@@ -62,12 +62,17 @@ public class SubmissionService {
         if (request.status() == SubmissionStatus.PENDING) {
             throw new BadRequestException("Review status must be APPROVED or REJECTED");
         }
+        String comment = request.comment() == null ? null : request.comment().trim();
+        if (request.status() == SubmissionStatus.REJECTED
+                && (comment == null || comment.isBlank())) {
+            throw new BadRequestException("A rejection comment is required");
+        }
         var submission = findOrThrow(id);
         if (submission.getStatus() != SubmissionStatus.PENDING) {
             throw new IllegalStateException("Submission already reviewed");
         }
         submission.setStatus(request.status());
-        submission.setAdminComment(request.comment());
+        submission.setAdminComment(comment == null || comment.isBlank() ? null : comment);
         submission.setReviewedAt(Instant.now());
         submissionRepository.save(submission);
 
@@ -86,7 +91,7 @@ public class SubmissionService {
     }
 
     private Submission findOrThrow(Long id) {
-        return submissionRepository.findById(id)
+        return submissionRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new EntityNotFoundException("Submission not found: " + id));
     }
 

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { getProgramById } from "../../entities/program/api";
+import { useEffect, useRef, useState } from "react";
+import { getProgramById, recordProgramEvent } from "../../entities/program/api";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
 import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
 import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
@@ -10,6 +10,9 @@ import type { Program } from "../../shared/types/program";
 import { useRouter } from "../../app/router/RouterProvider";
 import { AppShell } from "../../widgets/app-shell/AppShell";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
+import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
+import { useAuth } from "../../app/providers/AuthProvider";
+import { useFavorites } from "../../app/providers/FavoritesProvider";
 
 type ProgramDetailPageProps = {
   /** Сырой сегмент пути — валидируем здесь, роутер типы не знает. */
@@ -39,8 +42,11 @@ function parseProgramId(rawId: string) {
 
 export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
   const { navigate } = useRouter();
+  const { session } = useAuth();
+  const { actionError: favoriteError } = useFavorites();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [reloadToken, setReloadToken] = useState(0);
+  const recordedViews = useRef(new Set<number>());
 
   const parsedId = parseProgramId(programId);
 
@@ -61,6 +67,12 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
 
         if (isActive) {
           setState({ kind: "loaded", program });
+          if (program.status === "ACTIVE" && !recordedViews.current.has(id)) {
+            recordedViews.current.add(id);
+            void recordProgramEvent(id, "VIEW").catch(() => {
+              // Analytics must not turn a readable program into an error state.
+            });
+          }
         }
       } catch (error) {
         if (abortController.signal.aborted || !isActive) {
@@ -98,12 +110,18 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
           ? `${formatProgramType(program.type)} · ${program.country}`
           : "Program details."
       }
-      navigation={<MobileBottomNav currentRoute="programs" />}
+      navigation={
+        session?.user.role === "ADMIN" ? (
+          <AdminTabs currentRoute="adminPrograms" />
+        ) : (
+          <MobileBottomNav currentRoute="programs" />
+        )
+      }
     >
       <div className="detail-actions">
         <button
           className="secondary-button"
-          onClick={() => navigate("/programs")}
+          onClick={() => navigate(session?.user.role === "ADMIN" ? "/admin/programs" : "/programs")}
           type="button"
         >
           ← Back to catalog
@@ -135,12 +153,16 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
         </div>
       ) : null}
 
+      {favoriteError ? <div className="error-banner"><p>{favoriteError}</p></div> : null}
+
       {program ? (
         <article className="program-detail">
           <header className="program-detail__header">
             <h2>{program.title}</h2>
             <div className="program-badges">
-              <ToggleFavoriteButton program={program} size="large" />
+              {session?.user.role === "USER" ? (
+                <ToggleFavoriteButton program={program} size="large" />
+              ) : null}
               <ProgramBadges program={program} />
               {/* ACTIVE не показываем: каталог отдаёт только активные программы,
                   так что плашка была бы на каждой карточке и ничего не значила.
@@ -189,6 +211,13 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
             <a
               className="primary-button program-detail__link"
               href={externalUrl}
+              onClick={() => {
+                if (program.status === "ACTIVE") {
+                  void recordProgramEvent(program.id, "CLICK").catch(() => {
+                    // Opening the official page is more important than analytics.
+                  });
+                }
+              }}
               rel="noreferrer"
               target="_blank"
             >

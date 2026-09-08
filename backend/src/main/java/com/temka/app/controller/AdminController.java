@@ -7,6 +7,8 @@ import com.temka.app.dto.ProgramRequest;
 import com.temka.app.dto.ReviewSubmissionRequest;
 import com.temka.app.dto.SubmissionDto;
 import com.temka.app.dto.UpdateUserRoleRequest;
+import com.temka.app.entity.ProgramStatus;
+import com.temka.app.entity.ProgramType;
 import com.temka.app.service.ProgramService;
 import com.temka.app.service.ProgramAnalyticsService;
 import com.temka.app.service.SubmissionService;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -77,6 +80,20 @@ public class AdminController {
     }
 
     // ── Programs ───────────────────────────────────────────────────────────────
+
+    @GetMapping("/programs")
+    @Operation(summary = "List programs of every publication status")
+    public Page<ProgramDto> getPrograms(
+            @RequestParam(required = false) ProgramStatus status,
+            @RequestParam(required = false) ProgramType type,
+            @RequestParam(required = false) String country,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort
+    ) {
+        return programService.listForAdmin(status, type, country, q, page, size, sort);
+    }
 
     @PostMapping("/programs")
     @ResponseStatus(HttpStatus.CREATED)

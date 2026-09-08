@@ -18,8 +18,13 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 512)
-    private String token;
+    /**
+     * SHA-256 digest of the opaque token returned to the client. Keeping only
+     * the digest means a database dump cannot be used as an authenticated
+     * browser session.
+     */
+    @Column(name = "token", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)

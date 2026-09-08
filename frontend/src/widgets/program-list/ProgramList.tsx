@@ -11,6 +11,9 @@ type ProgramListProps = {
   emptyMessage?: string;
   /** В админском каталоге избранное не нужно — там другие задачи. */
   showFavoriteToggle?: boolean;
+  /** Черновики из админского списка недоступны через публичный detail endpoint. */
+  linkTitles?: boolean;
+  renderActions?: (program: Program) => React.ReactNode;
 };
 
 function formatProgramType(type: Program["type"]) {
@@ -24,7 +27,9 @@ function formatProgramType(type: Program["type"]) {
 export function ProgramList({
   programs,
   emptyMessage = "Programs will appear here once the API is connected.",
-  showFavoriteToggle = true
+  showFavoriteToggle = true,
+  linkTitles = true,
+  renderActions
 }: ProgramListProps) {
   if (!programs.length) {
     return <div className="placeholder-card">{emptyMessage}</div>;
@@ -43,12 +48,21 @@ export function ProgramList({
           >
             <div className="program-list__heading">
               <h2>
-                <AppLink className="program-list__title" to={programDetailPath(program.id)}>
-                  {program.title}
-                </AppLink>
+                {linkTitles ? (
+                  <AppLink className="program-list__title" to={programDetailPath(program.id)}>
+                    {program.title}
+                  </AppLink>
+                ) : (
+                  program.title
+                )}
               </h2>
               <div className="program-list__actions">
                 <ProgramBadges program={program} />
+                {program.status === "ACTIVE" ? null : (
+                  <span className={`status-pill status-pill--${program.status.toLowerCase()}`}>
+                    {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
+                  </span>
+                )}
                 {showFavoriteToggle ? <ToggleFavoriteButton program={program} /> : null}
               </div>
             </div>
@@ -78,6 +92,7 @@ export function ProgramList({
                 Open source
               </a>
             ) : null}
+            {renderActions ? <div className="action-strip">{renderActions(program)}</div> : null}
           </article>
         );
       })}

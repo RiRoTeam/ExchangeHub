@@ -4,5 +4,14 @@ frontend/.vite/
 .claude/
 .env
 .env.local
+.env.production
+.env.production.*
+!.env.production.example
+deploy/secrets/
+backups/
+*.dump
+*.dump.sha256
+*.pem
+*.key
 Claude outputs/
 docs/

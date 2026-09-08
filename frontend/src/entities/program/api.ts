@@ -1,4 +1,4 @@
-import { authorizedJsonBody, requestJson } from "../../shared/api/http";
+import { authorizedJsonBody, authorizedRequestJson, requestJson } from "../../shared/api/http";
 import type { Program, ProgramFilters } from "../../shared/types/program";
 import type { ProgramDraft } from "../../shared/types/submission";
 
@@ -15,6 +15,11 @@ type SpringPageEnvelope<T> = {
     totalElements: number;
     totalPages: number;
   };
+  // Older Spring Page serialization kept these fields at the response root.
+  size?: number;
+  number?: number;
+  totalElements?: number;
+  totalPages?: number;
 };
 
 /** Нормализованная страница — интерфейс не знает про форму конверта Spring. */
@@ -54,16 +59,38 @@ function toSearchParams(filters: ProgramFilters, pagination: ProgramPageRequest)
   return searchParams;
 }
 
-function toProgramPage(envelope: SpringPageEnvelope<Program>): ProgramPage {
-  const programs = envelope.content ?? [];
-  // Подстраховка на случай, если режим сериализации на бэке переключат
-  // обратно на плоский: лучше показать одну страницу, чем NaN в счётчике.
-  const meta = envelope.page ?? {
-    size: programs.length,
-    number: 0,
-    totalElements: programs.length,
-    totalPages: programs.length ? 1 : 0
+function isPageMetadata(value: unknown): value is NonNullable<SpringPageEnvelope<unknown>["page"]> {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return ["size", "number", "totalElements", "totalPages"].every(
+    (field) => typeof candidate[field] === "number" && Number.isFinite(candidate[field])
+  );
+}
+
+export function toProgramPage(envelope: SpringPageEnvelope<Program>): ProgramPage {
+  if (!envelope || !Array.isArray(envelope.content)) {
+    throw new Error("Program catalog response does not contain a content array");
+  }
+
+  const programs = envelope.content;
+  const rootMeta = {
+    size: envelope.size,
+    number: envelope.number,
+    totalElements: envelope.totalElements,
+    totalPages: envelope.totalPages
   };
+  const meta = isPageMetadata(envelope.page)
+    ? envelope.page
+    : isPageMetadata(rootMeta)
+      ? rootMeta
+      : null;
+
+  if (!meta) {
+    throw new Error("Program catalog response does not contain pagination metadata");
+  }
 
   return {
     programs,
@@ -95,4 +122,33 @@ export function getProgramById(id: number, signal?: AbortSignal) {
 /** POST /api/admin/programs — опубликовать программу минуя модерацию (только ADMIN). */
 export function createProgram(draft: ProgramDraft) {
   return authorizedJsonBody<Program>("POST", "/admin/programs", draft);
+}
+
+/** GET /api/admin/programs — полный каталог, включая неактивные записи. */
+export async function listAdminPrograms(
+  pagination: ProgramPageRequest = {},
+  signal?: AbortSignal
+) {
+  const query = toSearchParams({}, pagination).toString();
+  const envelope = await authorizedRequestJson<SpringPageEnvelope<Program>>(
+    `/admin/programs?${query}`,
+    { signal }
+  );
+  return toProgramPage(envelope);
+}
+
+/** DELETE /api/admin/programs/{id}. */
+export function deleteProgram(programId: number) {
+  return authorizedJsonBody<void>("DELETE", `/admin/programs/${programId}`);
+}
+
+export type ProgramAnalyticsEventType = "VIEW" | "CLICK";
+
+/** Public engagement event; analytics failures must never block navigation. */
+export function recordProgramEvent(programId: number, type: ProgramAnalyticsEventType) {
+  return requestJson<void>(`/programs/${programId}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type })
+  });
 }

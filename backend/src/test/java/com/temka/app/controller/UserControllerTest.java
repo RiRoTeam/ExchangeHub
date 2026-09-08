@@ -60,6 +60,35 @@ class UserControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void updateProfile_passwordChange_revokesExistingRefreshToken() throws Exception {
+        AuthResponse session = register("pwrevoke@test.com", "User", "oldpassword");
+
+        mvc.perform(patch("/api/users/me")
+                        .header("Authorization", "Bearer " + session.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"oldpassword\",\"newPassword\":\"newpassword\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + session.refreshToken() + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Refresh token not found"));
+    }
+
+    @Test
+    void updateProfile_blankNewPassword_returns400() throws Exception {
+        String token = registerAndGetAccessToken("blankpw@test.com", "User", "oldpassword");
+
+        mvc.perform(patch("/api/users/me")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"oldpassword\",\"newPassword\":\"      \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.newPassword").exists());
+    }
+
+    @Test
     void updateProfile_wrongCurrentPassword_returns400() throws Exception {
         String token = registerAndGetAccessToken("wrongpw@test.com", "User", "correctpassword");
 
@@ -73,6 +102,10 @@ class UserControllerTest extends AbstractIntegrationTest {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String registerAndGetAccessToken(String email, String name, String password) throws Exception {
+        return register(email, name, password).accessToken();
+    }
+
+    private AuthResponse register(String email, String name, String password) throws Exception {
         var result = mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
@@ -83,6 +116,6 @@ class UserControllerTest extends AbstractIntegrationTest {
         return mapper.readValue(
                 result.getResponse().getContentAsString(),
                 AuthResponse.class
-        ).accessToken();
+        );
     }
 }

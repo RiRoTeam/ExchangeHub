@@ -58,6 +58,12 @@ export function SuggestProgramForm({
   const [formError, setFormError] = useState("");
   const [successText, setSuccessText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const now = new Date();
+  const minimumDeadline = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0")
+  ].join("-");
 
   function updateField<K extends keyof ProgramDraftFormValues>(
     field: K,
@@ -175,7 +181,7 @@ export function SuggestProgramForm({
         id="deadline"
         label="Deadline"
         error={fieldErrors.deadline}
-        hint="Optional. Must be a future date."
+        hint="Optional. Today or a future date."
       >
         {(fieldId, isInvalid) => (
           <input
@@ -183,6 +189,7 @@ export function SuggestProgramForm({
             className="text-input"
             disabled={isSubmitting}
             id={fieldId}
+            min={minimumDeadline}
             name="deadline"
             onChange={(event) => updateField("deadline", event.target.value)}
             type="date"

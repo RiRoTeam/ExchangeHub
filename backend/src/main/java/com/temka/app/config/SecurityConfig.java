@@ -40,6 +40,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/health/liveness",
+                                "/actuator/health/readiness"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
@@ -57,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/submissions/**").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
                         .requestMatchers("/api/auth/me").authenticated()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e

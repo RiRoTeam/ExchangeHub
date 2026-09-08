@@ -34,7 +34,7 @@ const DESCRIPTION_MAX = 5000;
 const COUNTRY_MAX = 100;
 const URL_MAX = 500;
 
-function isFutureDate(value: string) {
+function isTodayOrFutureDate(value: string) {
   const parsed = new Date(`${value}T00:00:00`);
 
   if (Number.isNaN(parsed.getTime())) {
@@ -44,7 +44,7 @@ function isFutureDate(value: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return parsed.getTime() > today.getTime();
+  return parsed.getTime() >= today.getTime();
 }
 
 function isHttpUrl(value: string) {
@@ -85,8 +85,8 @@ export function validateProgramDraft(values: ProgramDraftFormValues): ProgramDra
     errors.type = "Choose a program type.";
   }
 
-  if (values.deadline && !isFutureDate(values.deadline)) {
-    errors.deadline = "The deadline must be a future date.";
+  if (values.deadline && !isTodayOrFutureDate(values.deadline)) {
+    errors.deadline = "The deadline must be today or a future date.";
   }
 
   if (values.url.trim()) {
@@ -114,7 +114,9 @@ export function toProgramDraft(values: ProgramDraftFormValues): ProgramDraft {
 
 const serverFieldMessages: Record<string, string> = {
   "must not be blank": "This field is required.",
-  "must be a future date": "The deadline must be a future date.",
+  "must be a future date": "The deadline must be today or a future date.",
+  "must be a date in the present or in the future":
+    "The deadline must be today or a future date.",
   "must be a valid URL": "Enter a full link, for example https://example.com/program.",
   "must not be null": "This field is required."
 };

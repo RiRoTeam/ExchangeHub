@@ -99,6 +99,11 @@ describe("навигационные списки", () => {
     expect(adminRoutes.some((route) => route.key === "profile")).toBe(true);
   });
 
+  it("аналитика доступна из админской навигации", () => {
+    expect(adminRoutes.some((route) => route.key === "adminAnalytics")).toBe(true);
+    expect(userRoutes.some((route) => route.key === "adminAnalytics")).toBe(false);
+  });
+
   it("профиль — последняя вкладка в обеих навигациях", () => {
     expect(userRoutes[userRoutes.length - 1].key).toBe("profile");
     expect(adminRoutes[adminRoutes.length - 1].key).toBe("profile");

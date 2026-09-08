@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${DB_USER:-exchangehub}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-exchangehub}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,7 +21,7 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       DB_HOST: db
       DB_PORT: 5432
