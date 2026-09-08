@@ -12,15 +12,12 @@ import type { Program } from "../../shared/types/program";
 type ProgramListProps = {
   programs: Program[];
   emptyMessage?: string;
-  /** В админском каталоге избранное не нужно — там другие задачи. */
-  showFavoriteToggle?: boolean;
   renderActions?: (program: Program) => React.ReactNode;
 };
 
 export function ProgramList({
   programs,
   emptyMessage,
-  showFavoriteToggle = true,
   renderActions
 }: ProgramListProps) {
   const { t } = useTranslation();
@@ -61,7 +58,7 @@ export function ProgramList({
                     {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
                   </span>
                 )}
-                {showFavoriteToggle ? <ToggleFavoriteButton program={program} /> : null}
+                <ToggleFavoriteButton program={program} />
               </div>
             </div>
 

@@ -218,7 +218,6 @@ export function AdminProgramsPage() {
                 program={program}
               />
             )}
-            showFavoriteToggle={false}
           />
           <Pagination
             currentPage={result.page}

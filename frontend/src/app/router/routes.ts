@@ -62,7 +62,9 @@ export const appRoutes: AppRouteDefinition[] = [
     key: "favorites",
     path: "/favorites",
     title: "Favorite programs",
-    scope: "user",
+    // Избранное есть у любого, кто вошёл: ручка /api/users/me/favorites
+    // роль не проверяет, и админу тоже есть что сохранять.
+    scope: "authenticated",
     navigationLabel: "nav.favorites"
   },
   {
@@ -258,10 +260,20 @@ function navigable(scope: RouteScope) {
   });
 }
 
+/**
+ * Страницы для любого залогиненного показываем в конце навигации: иначе
+ * избранное встало бы у админа перед его собственными вкладками.
+ */
+function byScopeOrder(left: AppRouteDefinition, right: AppRouteDefinition) {
+  const rank = (route: AppRouteDefinition) => (route.scope === "authenticated" ? 1 : 0);
+
+  return rank(left) - rank(right);
+}
+
 export const publicRoutes = navigable("public");
-export const guestRoutes = navigable("guest");
-export const userRoutes = navigable("user");
-export const adminRoutes = navigable("admin");
+export const guestRoutes = navigable("guest").sort(byScopeOrder);
+export const userRoutes = navigable("user").sort(byScopeOrder);
+export const adminRoutes = navigable("admin").sort(byScopeOrder);
 
 export function getDefaultPathForRole(role: "USER" | "ADMIN") {
   return role === "ADMIN" ? "/admin/programs" : "/programs";
