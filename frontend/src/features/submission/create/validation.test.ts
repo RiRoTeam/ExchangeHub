@@ -48,13 +48,18 @@ describe("validateProgramDraft", () => {
     expect(errors.title).toBeTruthy();
   });
 
-  it("ловит прошедший дедлайн (зеркалит @Future)", () => {
+  it("ловит прошедший дедлайн (зеркалит @FutureOrPresent)", () => {
     expect(validateProgramDraft({ ...validValues, deadline: pastDate() }).deadline).toBeTruthy();
   });
 
-  it("сегодняшняя дата — уже не будущее", () => {
-    const today = new Date().toISOString().slice(0, 10);
-    expect(validateProgramDraft({ ...validValues, deadline: today }).deadline).toBeTruthy();
+  it("принимает сегодняшнюю дату", () => {
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0")
+    ].join("-");
+    expect(validateProgramDraft({ ...validValues, deadline: today }).deadline).toBeUndefined();
   });
 
   it("ловит невалидный URL и не пускает не-http схемы", () => {
@@ -108,9 +113,19 @@ describe("readServerFieldErrors", () => {
 
     expect(readServerFieldErrors(error)).toEqual({
       title: "This field is required.",
-      deadline: "The deadline must be a future date.",
+      deadline: "The deadline must be today or a future date.",
       url: "Enter a full link, for example https://example.com/program.",
       description: "Must be 5000 characters or fewer."
+    });
+  });
+
+  it("переводит стандартное сообщение @FutureOrPresent", () => {
+    const error = new ApiError("Bad Request", 400, {
+      errors: { deadline: "must be a date in the present or in the future" }
+    });
+
+    expect(readServerFieldErrors(error)).toEqual({
+      deadline: "The deadline must be today or a future date."
     });
   });
 

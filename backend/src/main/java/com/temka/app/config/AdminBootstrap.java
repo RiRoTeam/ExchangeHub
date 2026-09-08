@@ -33,15 +33,23 @@ public class AdminBootstrap implements ApplicationRunner {
         }
         validate();
 
+        // Empty SELECT ... FOR UPDATE results do not lock a predicate in
+        // PostgreSQL. A transaction-scoped advisory lock serializes bootstrap
+        // across multiple application replicas without leaving lock rows behind.
+        userRepository.acquireAdminBootstrapLock();
+
         // Use the same lock order as role management. Existing admins always win:
         // bootstrap credentials cannot replace or modify an initialized system.
         if (!userRepository.findAllAdminsForUpdate().isEmpty()) {
             return;
         }
 
-        var existingUser = userRepository.findByEmailForUpdate(properties.email());
+        String email = properties.email().trim().toLowerCase(java.util.Locale.ROOT);
+        var existingUser = userRepository.findByEmailForUpdate(email);
         if (existingUser.isPresent()) {
             var user = existingUser.get();
+            user.setName(properties.name().trim());
+            user.setPassword(passwordEncoder.encode(properties.password()));
             user.setRole(Role.ADMIN);
             userRepository.save(user);
             refreshTokenService.revokeAllByUser(user);
@@ -50,8 +58,8 @@ public class AdminBootstrap implements ApplicationRunner {
         }
 
         userRepository.save(User.builder()
-                .email(properties.email())
-                .name(properties.name())
+                .email(email)
+                .name(properties.name().trim())
                 .password(passwordEncoder.encode(properties.password()))
                 .role(Role.ADMIN)
                 .build());
@@ -78,7 +86,7 @@ public class AdminBootstrap implements ApplicationRunner {
         if (properties.email().length() > 255) {
             throw new IllegalStateException("BOOTSTRAP_ADMIN_EMAIL must contain at most 255 characters");
         }
-        if (properties.name().length() < 2 || properties.name().length() > 100) {
+        if (properties.name().trim().length() < 2 || properties.name().trim().length() > 100) {
             throw new IllegalStateException("BOOTSTRAP_ADMIN_NAME must contain 2 to 100 characters");
         }
         if (properties.password().length() < 12 || properties.password().length() > 72) {

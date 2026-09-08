@@ -59,6 +59,21 @@ class ProgramServiceTest {
     }
 
     @Test
+    void listForAdminUsesUnrestrictedStatusWhenStatusFilterIsAbsent() {
+        var draft = sampleProgram();
+        draft.setStatus(ProgramStatus.DRAFT);
+        when(programRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sampleProgram(), draft)));
+
+        var result = programService.listForAdmin(
+                null, null, null, null, 0, 20, "createdAt,desc");
+
+        assertThat(result.getContent())
+                .extracting(item -> item.status())
+                .containsExactly(ProgramStatus.ACTIVE, ProgramStatus.DRAFT);
+    }
+
+    @Test
     void list_addsIdAsStableSecondarySort() {
         when(programRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
@@ -92,10 +107,21 @@ class ProgramServiceTest {
 
     @Test
     void getById_throwsNotFound_whenMissing() {
-        when(programRepository.findById(99L)).thenReturn(Optional.empty());
+        when(programRepository.findByIdAndStatus(99L, ProgramStatus.ACTIVE)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> programService.getById(99L))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void getById_onlyLooksUpActivePrograms() {
+        var program = sampleProgram();
+        when(programRepository.findByIdAndStatus(1L, ProgramStatus.ACTIVE))
+                .thenReturn(Optional.of(program));
+
+        assertThat(programService.getById(1L).status()).isEqualTo(ProgramStatus.ACTIVE);
+        verify(programRepository).findByIdAndStatus(1L, ProgramStatus.ACTIVE);
+        verify(programRepository, never()).findById(1L);
     }
 
     @Test

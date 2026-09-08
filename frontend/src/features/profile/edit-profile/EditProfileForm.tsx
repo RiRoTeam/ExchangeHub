@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../../app/providers/AuthProvider";
+import { useRouter } from "../../../app/router/RouterProvider";
 import { updateProfile } from "../../../entities/user/api";
 import {
   readServerFieldErrors,
@@ -61,7 +62,8 @@ function Field({
 }
 
 export function EditProfileForm() {
-  const { session, applyUpdatedUser } = useAuth();
+  const { session, applyUpdatedUser, signOut } = useAuth();
+  const { navigate } = useRouter();
   const currentName = session?.user.name ?? "";
 
   const [values, setValues] = useState<ProfileFormValues>({
@@ -111,6 +113,16 @@ export function EditProfileForm() {
     try {
       const updatedUser = await updateProfile(toUpdateRequest(values, currentName));
 
+      if (changedPassword) {
+        window.sessionStorage.setItem(
+          "exchangehub-auth-notice",
+          "Password updated. Sign in again with your new password."
+        );
+        void signOut();
+        navigate("/login", { replace: true });
+        return;
+      }
+
       applyUpdatedUser(updatedUser);
       // Пароли из состояния убираем сразу, чтобы не висели в памяти формы.
       setValues({
@@ -119,9 +131,7 @@ export function EditProfileForm() {
         newPassword: "",
         confirmPassword: ""
       });
-      setSuccessText(
-        changedPassword ? "Profile and password updated." : "Profile updated."
-      );
+      setSuccessText("Profile updated.");
     } catch (submitError) {
       const serverFieldErrors = readServerFieldErrors(submitError);
 

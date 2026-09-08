@@ -17,8 +17,30 @@ public final class ProgramSpecifications {
             String country,
             String query
     ) {
-        Specification<Program> specification = (root, criteriaQuery, cb) ->
-                cb.equal(root.get("status"), ProgramStatus.ACTIVE);
+        return catalog(ProgramStatus.ACTIVE, type, country, query);
+    }
+
+    public static Specification<Program> adminCatalog(
+            ProgramStatus status,
+            ProgramType type,
+            String country,
+            String query
+    ) {
+        return catalog(status, type, country, query);
+    }
+
+    private static Specification<Program> catalog(
+            ProgramStatus status,
+            ProgramType type,
+            String country,
+            String query
+    ) {
+        Specification<Program> specification = (root, criteriaQuery, cb) -> cb.conjunction();
+
+        if (status != null) {
+            specification = specification.and((root, criteriaQuery, cb) ->
+                    cb.equal(root.get("status"), status));
+        }
 
         if (type != null) {
             specification = specification.and((root, criteriaQuery, cb) ->

@@ -13,6 +13,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 
+    @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(1163416134)) AS bootstrap_lock", nativeQuery = true)
+    int acquireAdminBootstrapLock();
+
     @Query("SELECT u FROM User u ORDER BY u.createdAt DESC, u.id DESC")
     List<User> findAllForAdminView();
 

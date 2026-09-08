@@ -1,6 +1,7 @@
 import { useEffect, type ReactElement } from "react";
 import { useAuth } from "../providers/AuthProvider";
 import { AdminAddProgramPage } from "../../pages/admin-add-program/AdminAddProgramPage";
+import { AdminAnalyticsPage } from "../../pages/admin-analytics/AdminAnalyticsPage";
 import { AdminManageAdminsPage } from "../../pages/admin-manage-admins/AdminManageAdminsPage";
 import { AdminProgramsPage } from "../../pages/admin-programs/AdminProgramsPage";
 import { AdminReviewPage } from "../../pages/admin-review/AdminReviewPage";
@@ -32,6 +33,7 @@ const routeComponents: Record<AppRouteKey, (params: RouteParams) => ReactElement
   adminPrograms: () => <AdminProgramsPage />,
   adminReview: () => <AdminReviewPage />,
   adminAddProgram: () => <AdminAddProgramPage />,
+  adminAnalytics: () => <AdminAnalyticsPage />,
   adminManageAdmins: () => <AdminManageAdminsPage />
 };
 

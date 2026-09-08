@@ -24,6 +24,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String LOGIN_PATH    = "/api/auth/login";
     private static final String REGISTER_PATH = "/api/auth/register";
+    private static final String REFRESH_PATH  = "/api/auth/refresh";
+    private static final String SUBMISSION_PATH = "/api/submissions";
     private static final String ANALYTICS_EVENTS_KEY = "/api/programs/{id}/events";
     private static final Duration DEFAULT_BUCKET_TTL = Duration.ofMinutes(10);
     private static final long DEFAULT_MAX_BUCKETS = 10_000;
@@ -31,6 +33,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final long loginCapacity;
     private final long registerCapacity;
     private final long analyticsEventCapacity;
+    private final long submissionCapacity;
+    private final long refreshCapacity;
 
     private final Cache<String, Bucket> buckets;
 
@@ -38,23 +42,29 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(
             @Value("${rate-limit.login.capacity:10}") long loginCapacity,
             @Value("${rate-limit.register.capacity:5}") long registerCapacity,
-            @Value("${rate-limit.analytics-events.capacity:120}") long analyticsEventCapacity
+            @Value("${rate-limit.refresh.capacity:30}") long refreshCapacity,
+            @Value("${rate-limit.analytics-events.capacity:120}") long analyticsEventCapacity,
+            @Value("${rate-limit.submissions.capacity:20}") long submissionCapacity
     ) {
-        this(loginCapacity, registerCapacity, analyticsEventCapacity,
+        this(loginCapacity, registerCapacity, refreshCapacity, analyticsEventCapacity, submissionCapacity,
                 DEFAULT_MAX_BUCKETS, DEFAULT_BUCKET_TTL, Ticker.systemTicker());
     }
 
     RateLimitFilter(
             long loginCapacity,
             long registerCapacity,
+            long refreshCapacity,
             long analyticsEventCapacity,
+            long submissionCapacity,
             long maxBuckets,
             Duration bucketTtl,
             Ticker ticker
     ) {
         this.loginCapacity = loginCapacity;
         this.registerCapacity = registerCapacity;
+        this.refreshCapacity = refreshCapacity;
         this.analyticsEventCapacity = analyticsEventCapacity;
+        this.submissionCapacity = submissionCapacity;
         this.buckets = Caffeine.newBuilder()
                 .maximumSize(maxBuckets)
                 .expireAfterAccess(bucketTtl)
@@ -67,6 +77,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         return !path.equals(LOGIN_PATH)
                 && !path.equals(REGISTER_PATH)
+                && !path.equals(REFRESH_PATH)
+                && !isSubmissionRequest(request)
                 && !isAnalyticsEventRequest(request);
     }
 
@@ -76,9 +88,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         String path = request.getServletPath();
         boolean analyticsEvent = isAnalyticsEventRequest(request);
+        boolean submission = isSubmissionRequest(request);
         long capacity = analyticsEvent
                 ? analyticsEventCapacity
-                : path.equals(LOGIN_PATH) ? loginCapacity : registerCapacity;
+                : submission
+                        ? submissionCapacity
+                        : path.equals(LOGIN_PATH)
+                                ? loginCapacity
+                                : path.equals(REFRESH_PATH) ? refreshCapacity : registerCapacity;
         // One bucket per client for all program events prevents callers from
         // bypassing the limit by rotating program IDs (and avoids per-program keys).
         String bucketPath = analyticsEvent ? ANALYTICS_EVENTS_KEY : path;
@@ -119,6 +136,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return "POST".equals(request.getMethod())
                 && path.startsWith("/api/programs/")
                 && path.endsWith("/events");
+    }
+
+    private boolean isSubmissionRequest(HttpServletRequest request) {
+        return "POST".equals(request.getMethod())
+                && SUBMISSION_PATH.equals(request.getServletPath());
     }
 
 }

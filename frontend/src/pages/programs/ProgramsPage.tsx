@@ -10,6 +10,7 @@ import { FilterSidebar } from "../../widgets/filter-sidebar/FilterSidebar";
 import { Pagination } from "../../widgets/pagination/Pagination";
 import { ProgramList } from "../../widgets/program-list/ProgramList";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
+import { useFavorites } from "../../app/providers/FavoritesProvider";
 
 const emptyPage: ProgramPage = {
   programs: [],
@@ -38,6 +39,7 @@ function toFriendlyProgramsError(error: unknown) {
 }
 
 export function ProgramsPage() {
+  const { actionError: favoriteError } = useFavorites();
   const [result, setResult] = useState<ProgramPage>(emptyPage);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
@@ -191,6 +193,8 @@ export function ProgramsPage() {
           </button>
         </div>
       ) : null}
+
+      {favoriteError ? <div className="error-banner"><p>{favoriteError}</p></div> : null}
 
       {isLoading ? (
         <div className="placeholder-card">Loading programs...</div>

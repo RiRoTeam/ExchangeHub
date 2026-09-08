@@ -10,6 +10,7 @@
 - [Быстрый запуск demo](#быстрый-запуск-demo)
 - [Что доступно в demo](#что-доступно-в-demo)
 - [Обычный локальный запуск](#обычный-локальный-запуск)
+- [Production deployment](#production-deployment)
 - [Первый администратор](#первый-администратор)
 - [Проверка backend](#проверка-backend)
 - [Функциональные требования](#функциональные-требования)
@@ -152,9 +153,29 @@ SPRING_PROFILES_ACTIVE=dev docker compose up -d --build --wait
 make down
 ```
 
-## Первый администратор
+## Production deployment
 
-Безопасный bootstrap включается только при одновременной передаче трёх переменных.
+Локальные `docker-compose.yml`, `.env.example`, `make up` и `make demo` **не
+предназначены для production**: в них используются локальные defaults и нет
+публичного TLS-контура.
+
+Для production подготовлен отдельный стек с Caddy/HTTPS, Docker secrets,
+non-superuser пользователем PostgreSQL, healthchecks, ограничением логов и подробным
+runbook для первого запуска, обновлений, backup и восстановления:
+
+- [полная инструкция по развёртыванию](deploy.md);
+- [`docker-compose.prod.yml`](docker-compose.prod.yml);
+- [`Caddyfile`](Caddyfile);
+- [шаблон несекретных production-переменных](.env.production.example).
+
+Не копируйте локальные DB/JWT значения в production и никогда не запускайте
+`docker compose down -v`, `make clean` или `make nuke` на production-сервере.
+
+## Первый администратор (только local/dev)
+
+Следующая команда относится только к локальному `docker-compose.yml`. Для production
+используйте secret files и порядок из [`deploy.md`](deploy.md), чтобы пароль не попал
+в shell history. Безопасный bootstrap включается только при одновременной передаче трёх переменных.
 Он создаёт или повышает пользователя до `ADMIN`, только пока в системе ещё нет
 администратора. Пароль должен содержать от 12 до 72 символов.
 

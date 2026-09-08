@@ -21,7 +21,7 @@ export type Submission = {
 /**
  * Тело для POST /api/submissions и POST /api/admin/programs — на бэке это
  * SubmissionRequest и ProgramRequest, у них одинаковый набор полей.
- * deadline и url на бэке необязательны (@Future / @URL пропускают null).
+ * deadline и url на бэке необязательны (@FutureOrPresent / @URL пропускают null).
  */
 export type ProgramDraft = {
   title: string;

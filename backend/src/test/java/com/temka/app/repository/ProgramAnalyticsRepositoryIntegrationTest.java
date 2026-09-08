@@ -3,6 +3,7 @@ package com.temka.app.repository;
 import com.temka.app.AbstractIntegrationTest;
 import com.temka.app.entity.Program;
 import com.temka.app.entity.ProgramAnalyticsEventType;
+import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.ProgramType;
 import com.temka.app.entity.Role;
 import com.temka.app.entity.User;
@@ -83,6 +84,23 @@ class ProgramAnalyticsRepositoryIntegrationTest extends AbstractIntegrationTest 
                     assertThat(day.getViews()).isZero();
                     assertThat(day.getClicks()).isZero();
                 });
+    }
+
+    @Test
+    void inactiveProgramDoesNotAcceptAnalyticsEvents() {
+        var program = programRepository.save(Program.builder()
+                .title("Inactive analytics program")
+                .description("Must not accept public events")
+                .country("Estonia")
+                .type(ProgramType.EXCHANGE)
+                .status(ProgramStatus.INACTIVE)
+                .build());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        analyticsService.record(program.getId(), ProgramAnalyticsEventType.VIEW))
+                .isInstanceOf(EntityNotFoundException.class);
+
+        assertThat(analyticsRepository.findById(program.getId())).isEmpty();
     }
 
     @Test

@@ -82,13 +82,16 @@ class AdminBootstrapTest {
         var existingUser = user(Role.USER);
         when(userRepository.findAllAdminsForUpdate()).thenReturn(List.of());
         when(userRepository.findByEmailForUpdate("admin@example.com")).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.encode("long-secure-password")).thenReturn("encoded-bootstrap");
 
         bootstrap(configuredProperties());
 
         assertThat(existingUser.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(existingUser.getName()).isEqualTo("Admin");
+        assertThat(existingUser.getPassword()).isEqualTo("encoded-bootstrap");
         verify(userRepository).save(existingUser);
         verify(refreshTokenService).revokeAllByUser(existingUser);
-        verifyNoInteractions(passwordEncoder);
+        verify(passwordEncoder).encode("long-secure-password");
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.temka.app.service;
 
 import com.temka.app.AbstractIntegrationTest;
+import com.temka.app.dto.RefreshRequest;
 import com.temka.app.dto.UpdateProfileRequest;
 import com.temka.app.entity.RefreshToken;
 import com.temka.app.entity.Role;
@@ -13,8 +14,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,6 +31,9 @@ class UserPersistenceIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    AuthService authService;
 
     @Autowired
     RefreshTokenService refreshTokenService;
@@ -40,6 +49,9 @@ class UserPersistenceIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    TransactionTemplate transactionTemplate;
 
     @AfterEach
     void removeTestUsers() {
@@ -131,6 +143,77 @@ class UserPersistenceIntegrationTest extends AbstractIntegrationTest {
         assertThat(tokenRevokedInDatabase(refreshToken.getId())).isFalse();
     }
 
+    @Test
+    void concurrentRefreshCannotEscapePasswordChangeRevocation() throws Exception {
+        var user = saveUser("persistence-test-concurrent-refresh@example.com", Role.USER,
+                "OldPassword123!");
+        String rawRefreshToken = refreshTokenService.createRefreshToken(user);
+        var userLocked = new CountDownLatch(1);
+        var finishPasswordChange = new CountDownLatch(1);
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var passwordChange = executor.submit(() -> transactionTemplate.executeWithoutResult(status -> {
+                userRepository.findByIdForUpdate(user.getId()).orElseThrow();
+                userLocked.countDown();
+                await(finishPasswordChange);
+                userService.updateProfile(
+                        user,
+                        new UpdateProfileRequest(null, "OldPassword123!", "NewPassword123!")
+                );
+            }));
+
+            assertThat(userLocked.await(10, TimeUnit.SECONDS)).isTrue();
+            var refresh = executor.submit(() ->
+                    authService.refresh(new RefreshRequest(rawRefreshToken)));
+
+            try {
+                awaitDatabaseLockWait();
+                assertThat(refresh.isDone()).isFalse();
+            } finally {
+                finishPasswordChange.countDown();
+            }
+
+            passwordChange.get(10, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> refresh.get(10, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(InvalidTokenException.class);
+        }
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM refresh_tokens WHERE user_id = ? AND revoked = false",
+                Long.class,
+                user.getId()
+        )).isZero();
+    }
+
+    private void awaitDatabaseLockWait() throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            Integer waitingSessions = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND wait_event_type = 'Lock'
+                    """, Integer.class);
+            if (waitingSessions != null && waitingSessions > 0) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Refresh transaction never waited for the locked user row");
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Concurrent test latch timed out");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Concurrent test interrupted", exception);
+        }
+    }
+
     private User saveUser(String email, Role role, String rawPassword) {
         return userRepository.save(User.builder()
                 .email(email)
@@ -142,7 +225,7 @@ class UserPersistenceIntegrationTest extends AbstractIntegrationTest {
 
     private RefreshToken saveRefreshToken(User user, String token) {
         return refreshTokenRepository.save(RefreshToken.builder()
-                .token(token)
+                .tokenHash(RefreshTokenService.hash(token))
                 .user(user)
                 .expiresAt(Instant.now().plusSeconds(3_600))
                 .revoked(false)

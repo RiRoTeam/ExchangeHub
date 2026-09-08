@@ -53,6 +53,12 @@ class AuthControllerTest extends AbstractIntegrationTest {
                 result.getResponse().getContentAsString(), AuthResponse.class);
         assertThat(response.accessToken()).isNotBlank();
         assertThat(response.refreshToken()).isNotBlank();
+        assertThat(refreshTokenRepository.findAll())
+                .singleElement()
+                .satisfies(stored -> {
+                    assertThat(stored.getTokenHash()).hasSize(64);
+                    assertThat(stored.getTokenHash()).isNotEqualTo(response.refreshToken());
+                });
     }
 
     @Test
@@ -67,6 +73,26 @@ class AuthControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Email already in use"));
+    }
+
+    @Test
+    void register_emailIdentityIsCaseInsensitiveAndStoredNormalized() throws Exception {
+        mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"Case@Test.COM","name":"User","password":"secret123"}
+                                """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"case@test.com","name":"Other","password":"secret123"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Email already in use"));
+
+        assertThat(userRepository.findByEmail("case@test.com")).isPresent();
     }
 
     @Test
@@ -127,6 +153,18 @@ class AuthControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void login_emailIdentityIsCaseInsensitive() throws Exception {
+        registerUser("case-login@test.com", "Login User", "mypassword");
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"CASE-LOGIN@TEST.COM","password":"mypassword"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void login_wrongPassword_returns401() throws Exception {
         registerUser("wrong@test.com", "User", "correct");
 
@@ -175,7 +213,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + oldRefreshToken + "\"}"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.detail").value("Refresh token has been revoked"));
+                .andExpect(jsonPath("$.detail").value("Refresh token not found"));
     }
 
     @Test
@@ -210,7 +248,7 @@ class AuthControllerTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.detail").value("Refresh token has been revoked"));
+                .andExpect(jsonPath("$.detail").value("Refresh token not found"));
     }
 
     @Test

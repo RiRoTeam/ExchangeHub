@@ -30,6 +30,9 @@ class AdminBootstrapPersistenceIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
     @AfterEach
     void removeBootstrapUser() {
         jdbcTemplate.update("DELETE FROM users WHERE email = ?", EMAIL);
@@ -42,6 +45,19 @@ class AdminBootstrapPersistenceIntegrationTest extends AbstractIntegrationTest {
                 String.class,
                 EMAIL
         )).isEqualTo("ADMIN");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM users WHERE email = ?",
+                String.class,
+                EMAIL
+        )).isEqualTo("Bootstrap Admin");
+        assertThat(passwordEncoder.matches(
+                "BootstrapPassword123!",
+                jdbcTemplate.queryForObject(
+                        "SELECT password FROM users WHERE email = ?",
+                        String.class,
+                        EMAIL
+                )
+        )).isTrue();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT revoked FROM refresh_tokens WHERE token = ?",
                 Boolean.class,

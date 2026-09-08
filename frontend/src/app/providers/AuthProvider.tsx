@@ -44,6 +44,11 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
+type RefreshInFlight = {
+  refreshToken: string;
+  promise: Promise<string | null>;
+};
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function isUnauthorizedError(error: unknown) {
@@ -101,7 +106,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Актуальная сессия для http-слоя: он живёт вне React и не может читать state.
   const sessionRef = useRef<Session | null>(null);
   // Один общий promise на все параллельные 401 — чтобы не жечь refresh-токен гонкой.
-  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
+  const refreshPromiseRef = useRef<RefreshInFlight | null>(null);
+  // Any reset invalidates async work started by the previous session. Without
+  // this guard a refresh response can arrive after logout and sign the user in again.
+  const sessionGenerationRef = useRef(0);
 
   const applySession = useCallback((nextSession: Session) => {
     sessionRef.current = nextSession;
@@ -111,6 +119,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const resetSession = useCallback(() => {
+    sessionGenerationRef.current += 1;
     sessionRef.current = null;
     clearStoredSession();
     setSession(null);
@@ -129,10 +138,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return Promise.resolve(null);
         }
 
-        if (!refreshPromiseRef.current) {
-          refreshPromiseRef.current = (async () => {
+        if (refreshPromiseRef.current?.refreshToken !== currentSession.refreshToken) {
+          const originalRefreshToken = currentSession.refreshToken;
+          const generation = sessionGenerationRef.current;
+          const inFlight: RefreshInFlight = {
+            refreshToken: originalRefreshToken,
+            promise: Promise.resolve(null)
+          };
+
+          inFlight.promise = (async () => {
             try {
-              const tokens = await refreshAuthTokens(currentSession.refreshToken);
+              const tokens = await refreshAuthTokens(originalRefreshToken);
+
+              if (
+                sessionGenerationRef.current !== generation ||
+                sessionRef.current?.refreshToken !== originalRefreshToken
+              ) {
+                // The user logged out or switched accounts while refresh was in
+                // flight. Revoke the rotated token instead of resurrecting it.
+                void revokeRefreshToken(tokens.refreshToken).catch(() => {});
+                return null;
+              }
 
               applySession({
                 ...currentSession,
@@ -142,15 +168,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
               return tokens.accessToken;
             } catch {
-              resetSession();
+              if (
+                sessionGenerationRef.current === generation &&
+                sessionRef.current?.refreshToken === originalRefreshToken
+              ) {
+                resetSession();
+              }
               return null;
             } finally {
-              refreshPromiseRef.current = null;
+              if (refreshPromiseRef.current === inFlight) {
+                refreshPromiseRef.current = null;
+              }
             }
           })();
+          refreshPromiseRef.current = inFlight;
         }
 
-        return refreshPromiseRef.current;
+        return refreshPromiseRef.current.promise;
       },
 
       onSessionExpired: () => {
@@ -210,6 +244,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const nextSession = await buildSessionFromTokens(tokens, payload.mode);
 
       if (payload.mode === "admin-login" && nextSession.user.role !== "ADMIN") {
+        void revokeRefreshToken(nextSession.refreshToken).catch(() => {});
         throw new AdminAccessRequiredError();
       }
 
@@ -231,8 +266,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return null;
     }
 
+    const generation = sessionGenerationRef.current;
+    const originalRefreshToken = currentSession.refreshToken;
+
     try {
-      const refreshedTokens = await refreshAuthTokens(currentSession.refreshToken);
+      const refreshedTokens = await refreshAuthTokens(originalRefreshToken);
+
+      if (
+        sessionGenerationRef.current !== generation ||
+        sessionRef.current?.refreshToken !== originalRefreshToken
+      ) {
+        void revokeRefreshToken(refreshedTokens.refreshToken).catch(() => {});
+        return null;
+      }
+
       const nextSession = await buildSessionFromTokens(
         {
           accessToken: refreshedTokens.accessToken,
@@ -242,11 +289,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
         currentSession.createdAt
       );
 
+      if (
+        sessionGenerationRef.current !== generation ||
+        sessionRef.current?.refreshToken !== originalRefreshToken
+      ) {
+        void revokeRefreshToken(refreshedTokens.refreshToken).catch(() => {});
+        return null;
+      }
+
       applySession(nextSession);
 
       return nextSession;
     } catch {
-      resetSession();
+      if (
+        sessionGenerationRef.current === generation &&
+        sessionRef.current?.refreshToken === originalRefreshToken
+      ) {
+        resetSession();
+      }
       return null;
     }
   }

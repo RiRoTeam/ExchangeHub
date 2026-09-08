@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.temka.app.AbstractIntegrationTest;
 import com.temka.app.dto.AuthResponse;
 import com.temka.app.entity.Program;
+import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.ProgramType;
 import com.temka.app.repository.ProgramRepository;
 import com.temka.app.repository.RefreshTokenRepository;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +32,7 @@ class UserFavoriteControllerTest extends AbstractIntegrationTest {
     @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired ProgramRepository programRepository;
     @Autowired UserRepository userRepository;
+    @Autowired JdbcTemplate jdbcTemplate;
 
     private String firstUserToken;
     private String secondUserToken;
@@ -115,6 +118,32 @@ class UserFavoriteControllerTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.detail").value("Program not found: " + Long.MAX_VALUE));
 
         assertThat(favoriteRepository.count()).isZero();
+    }
+
+    @Test
+    void inactiveProgramCannotBeAddedOrDisclosedThroughFavorites() throws Exception {
+        var inactiveProgram = programRepository.save(Program.builder()
+                .title("Internal draft")
+                .description("Must not be exposed")
+                .country("Estonia")
+                .type(ProgramType.EXCHANGE)
+                .status(ProgramStatus.INACTIVE)
+                .build());
+
+        mvc.perform(post("/api/users/me/favorites/{programId}", inactiveProgram.getId())
+                        .header("Authorization", "Bearer " + firstUserToken))
+                .andExpect(status().isNotFound());
+
+        var user = userRepository.findByEmail("favorite-one@test.com").orElseThrow();
+        jdbcTemplate.update(
+                "INSERT INTO user_favorites (user_id, program_id) VALUES (?, ?)",
+                user.getId(), inactiveProgram.getId()
+        );
+
+        mvc.perform(get("/api/users/me/favorites")
+                        .header("Authorization", "Bearer " + firstUserToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     private String registerAndGetAccessToken(String email) throws Exception {

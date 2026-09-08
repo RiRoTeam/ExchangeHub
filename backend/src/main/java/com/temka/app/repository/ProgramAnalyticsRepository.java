@@ -16,7 +16,7 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
             INSERT INTO program_analytics (program_id, view_count, click_count, updated_at)
             SELECT id, 1, 0, CURRENT_TIMESTAMP
             FROM programs
-            WHERE id = :programId
+            WHERE id = :programId AND status = 'ACTIVE'
             ON CONFLICT (program_id) DO UPDATE
             SET view_count = program_analytics.view_count + 1,
                 updated_at = CURRENT_TIMESTAMP
@@ -28,7 +28,7 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
             INSERT INTO program_analytics (program_id, view_count, click_count, updated_at)
             SELECT id, 0, 1, CURRENT_TIMESTAMP
             FROM programs
-            WHERE id = :programId
+            WHERE id = :programId AND status = 'ACTIVE'
             ON CONFLICT (program_id) DO UPDATE
             SET click_count = program_analytics.click_count + 1,
                 updated_at = CURRENT_TIMESTAMP
@@ -41,7 +41,7 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
                 (program_id, event_date, view_count, click_count, updated_at)
             SELECT id, CURRENT_DATE, 1, 0, CURRENT_TIMESTAMP
             FROM programs
-            WHERE id = :programId
+            WHERE id = :programId AND status = 'ACTIVE'
             ON CONFLICT (program_id, event_date) DO UPDATE
             SET view_count = program_analytics_daily.view_count + 1,
                 updated_at = CURRENT_TIMESTAMP
@@ -54,7 +54,7 @@ public interface ProgramAnalyticsRepository extends JpaRepository<ProgramAnalyti
                 (program_id, event_date, view_count, click_count, updated_at)
             SELECT id, CURRENT_DATE, 0, 1, CURRENT_TIMESTAMP
             FROM programs
-            WHERE id = :programId
+            WHERE id = :programId AND status = 'ACTIVE'
             ON CONFLICT (program_id, event_date) DO UPDATE
             SET click_count = program_analytics_daily.click_count + 1,
                 updated_at = CURRENT_TIMESTAMP

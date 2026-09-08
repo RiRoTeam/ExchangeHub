@@ -75,6 +75,11 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notice] = useState(() => {
+    const value = window.sessionStorage.getItem("exchangehub-auth-notice") ?? "";
+    window.sessionStorage.removeItem("exchangehub-auth-notice");
+    return value;
+  });
 
   const currentCopy = authCopy[mode];
 
@@ -197,6 +202,7 @@ export function LoginPage() {
             </form>
 
             <div className="auth-feedback" aria-live="polite">
+              {notice && !error ? <p className="form-feedback__success">{notice}</p> : null}
               {error ? <p className="auth-feedback__error">{error}</p> : null}
             </div>
           </div>

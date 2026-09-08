@@ -13,12 +13,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RateLimitFilterTest {
 
-    // capacity: login=3, register=2, analytics events=4
+    // capacity: login=3, register=2, refresh=2, analytics events=4, submissions=2
     private RateLimitFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new RateLimitFilter(3, 2, 4);
+        filter = new RateLimitFilter(3, 2, 2, 4, 2);
     }
 
     @Test
@@ -49,6 +49,17 @@ class RateLimitFilterTest {
         }
 
         var response = doRequest("10.0.0.3", "/api/auth/register");
+
+        assertThat(response.getStatus()).isEqualTo(429);
+        assertThat(response.getHeader("Retry-After")).isEqualTo("60");
+    }
+
+    @Test
+    void refresh_exceedsLimit_returns429() throws Exception {
+        doRequest("10.0.0.4", "/api/auth/refresh");
+        doRequest("10.0.0.4", "/api/auth/refresh");
+
+        var response = doRequest("10.0.0.4", "/api/auth/refresh");
 
         assertThat(response.getStatus()).isEqualTo(429);
         assertThat(response.getHeader("Retry-After")).isEqualTo("60");
@@ -98,6 +109,16 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void submissionsAreRateLimitedPerIp() throws Exception {
+        doRequest("10.4.1.1", "/api/submissions");
+        doRequest("10.4.1.1", "/api/submissions");
+
+        var response = doRequest("10.4.1.1", "/api/submissions");
+
+        assertThat(response.getStatus()).isEqualTo(429);
+    }
+
+    @Test
     void forwardedHeaderCannotBypassLimitBeforeTrustedProxyNormalization() throws Exception {
         for (int i = 0; i < 3; i++) {
             doRequest("203.0.113.10", "/api/auth/login", "198.51.100." + i);
@@ -112,7 +133,7 @@ class RateLimitFilterTest {
     @Test
     void idleClientBucketsAreEvicted() throws Exception {
         var ticker = new AtomicLong();
-        filter = new RateLimitFilter(3, 2, 4, 100, Duration.ofNanos(10), ticker::get);
+        filter = new RateLimitFilter(3, 2, 2, 4, 2, 100, Duration.ofNanos(10), ticker::get);
 
         doRequest("10.5.0.1", "/api/auth/login");
         assertThat(filter.bucketCount()).isEqualTo(1);
@@ -125,7 +146,7 @@ class RateLimitFilterTest {
 
     @Test
     void clientBucketCacheIsBounded() throws Exception {
-        filter = new RateLimitFilter(3, 2, 4, 3, Duration.ofMinutes(10), () -> 0L);
+        filter = new RateLimitFilter(3, 2, 2, 4, 2, 3, Duration.ofMinutes(10), () -> 0L);
 
         for (int i = 0; i < 10; i++) {
             doRequest("10.6.0." + i, "/api/auth/login");

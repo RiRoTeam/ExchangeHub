@@ -2,6 +2,7 @@ package com.temka.app.service;
 
 import com.temka.app.dto.ProgramDto;
 import com.temka.app.entity.Program;
+import com.temka.app.entity.ProgramStatus;
 import com.temka.app.entity.User;
 import com.temka.app.repository.ProgramRepository;
 import com.temka.app.repository.UserFavoriteRepository;
@@ -28,7 +29,7 @@ public class UserFavoriteService {
 
     @Transactional
     public void add(User user, Long programId) {
-        if (!programRepository.existsById(programId)) {
+        if (!programRepository.existsByIdAndStatus(programId, ProgramStatus.ACTIVE)) {
             throw new EntityNotFoundException("Program not found: " + programId);
         }
         favoriteRepository.addIfAbsent(user.getId(), programId);

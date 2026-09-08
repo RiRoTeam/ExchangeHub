@@ -23,10 +23,10 @@ function HeartIcon({ filled }: { filled: boolean }) {
 }
 
 export function ToggleFavoriteButton({ program, size = "compact" }: ToggleFavoriteButtonProps) {
-  const { isFavorite, isPending, toggleFavorite } = useFavorites();
+  const { status, isFavorite, isPending, toggleFavorite } = useFavorites();
 
   const active = isFavorite(program.id);
-  const pending = isPending(program.id);
+  const pending = isPending(program.id) || status === "loading" || status === "idle";
   const label = active ? `Remove ${program.title} from favorites` : `Save ${program.title} to favorites`;
 
   return (

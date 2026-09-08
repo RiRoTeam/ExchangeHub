@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: ["**"]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend tests
@@ -39,10 +46,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Node.js
+      - name: Set up Node.js 24
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -53,3 +60,35 @@ jobs:
       - name: Run tests
         working-directory: frontend
         run: npm test
+
+      - name: Type-check and build production bundle
+        working-directory: frontend
+        run: npm run build
+
+      - name: Audit all dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+  deployment-config:
+    name: Validate production Compose
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create disposable validation secrets
+        run: |
+          install -d -m 700 deploy/secrets
+          printf '%s' 'ci-only-postgres-admin-password' > deploy/secrets/postgres_admin_password
+          printf '%s' 'ci-only-db-app-password' > deploy/secrets/db_app_password
+          printf '%s' 'ci-only-jwt-secret-that-is-longer-than-thirty-two-bytes' > deploy/secrets/jwt_secret
+          : > deploy/secrets/bootstrap_admin_email
+          : > deploy/secrets/bootstrap_admin_name
+          : > deploy/secrets/bootstrap_admin_password
+
+      - name: Validate production Compose model
+        run: docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
+
+      - name: Remove disposable validation secrets
+        if: always()
+        run: rm -rf deploy/secrets

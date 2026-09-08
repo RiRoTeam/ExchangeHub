@@ -1,6 +1,7 @@
 package com.temka.app.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.temka.app.config.PaginationConfig;
 import com.temka.app.dto.AdminAnalyticsResponse;
 import com.temka.app.dto.AdminUserResponse;
 import com.temka.app.dto.ProgramDto;
@@ -24,8 +25,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -42,6 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(PaginationConfig.class)
 class AdminControllerTest {
 
     @Autowired
@@ -181,6 +185,45 @@ class AdminControllerTest {
     }
 
     @Test
+    void getPrograms_returnsPaginatedProgramsAcrossStatuses() throws Exception {
+        var draft = new ProgramDto(2L, "Draft", "D", "UK", ProgramType.EXCHANGE,
+                null, null, ProgramStatus.DRAFT, Instant.now());
+        when(programService.listForAdmin(null, null, null, null, 0, 20, "createdAt,desc"))
+                .thenReturn(new PageImpl<>(List.of(programDto(), draft)));
+
+        mockMvc.perform(get("/api/admin/programs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.content[1].status").value("DRAFT"))
+                .andExpect(jsonPath("$.page.totalElements").value(2));
+
+        verify(programService).listForAdmin(
+                null, null, null, null, 0, 20, "createdAt,desc");
+    }
+
+    @Test
+    void getPrograms_passesStatusAndPaginationFilters() throws Exception {
+        when(programService.listForAdmin(
+                ProgramStatus.INACTIVE, ProgramType.OTHER, "Ireland", "archive",
+                2, 10, "title,asc"))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        mockMvc.perform(get("/api/admin/programs")
+                        .param("status", "INACTIVE")
+                        .param("type", "OTHER")
+                        .param("country", "Ireland")
+                        .param("q", "archive")
+                        .param("page", "2")
+                        .param("size", "10")
+                        .param("sort", "title,asc"))
+                .andExpect(status().isOk());
+
+        verify(programService).listForAdmin(
+                ProgramStatus.INACTIVE, ProgramType.OTHER, "Ireland", "archive",
+                2, 10, "title,asc");
+    }
+
+    @Test
     void reviewSubmission_approve_returns200() throws Exception {
         var request = new ReviewSubmissionRequest(SubmissionStatus.APPROVED, "LGTM");
         when(submissionService.review(eq(1L), any())).thenReturn(submissionDto(SubmissionStatus.APPROVED));
@@ -204,6 +247,20 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.status").value("REJECTED"));
 
         verify(programService, never()).create(any());
+    }
+
+    @Test
+    void reviewSubmission_oversizedCommentReturns400() throws Exception {
+        String body = objectMapper.writeValueAsString(
+                new ReviewSubmissionRequest(SubmissionStatus.REJECTED, "X".repeat(2001)));
+
+        mockMvc.perform(patch("/api/admin/submissions/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.comment").exists());
+
+        verify(submissionService, never()).review(any(), any());
     }
 
     @Test
