@@ -33,8 +33,8 @@ const routeComponents: Record<AppRouteKey, (params: RouteParams) => ReactElement
   adminPrograms: () => <AdminProgramsPage />,
   adminReview: () => <AdminReviewPage />,
   adminAddProgram: () => <AdminAddProgramPage />,
-  adminAnalytics: () => <AdminAnalyticsPage />,
-  adminManageAdmins: () => <AdminManageAdminsPage />
+  adminManageAdmins: () => <AdminManageAdminsPage />,
+  adminAnalytics: () => <AdminAnalyticsPage />
 };
 
 function RouteStatus({ title, message }: { title: string; message: string }) {

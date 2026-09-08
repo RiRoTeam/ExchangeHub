@@ -12,11 +12,16 @@ import {
 } from "./validation";
 
 type SuggestProgramFormProps = {
-  /** Что делать с заполненной формой: POST /submissions или POST /admin/programs. */
+  /** Что делать с заполненной формой: POST /submissions, /admin/programs или PUT. */
   onSubmit: (draft: ProgramDraft) => Promise<unknown>;
   heading?: string;
   submitLabel?: string;
   successMessage?: string;
+  /** Заполненные поля для режима редактирования. */
+  initialValues?: ProgramDraftFormValues;
+  /** При редактировании форму чистить нельзя — значения остаются на экране. */
+  resetAfterSubmit?: boolean;
+  onCancel?: () => void;
 };
 
 type FieldProps = {
@@ -51,19 +56,26 @@ export function SuggestProgramForm({
   onSubmit,
   heading = "Program form",
   submitLabel = "Send program for review",
-  successMessage = "Thanks! Your program is now in the moderation queue."
+  successMessage = "Thanks! Your program is now in the moderation queue.",
+  initialValues,
+  resetAfterSubmit = true,
+  onCancel
 }: SuggestProgramFormProps) {
-  const [values, setValues] = useState<ProgramDraftFormValues>(emptyProgramDraft);
-  const [fieldErrors, setFieldErrors] = useState<ProgramDraftFieldErrors>({});
-  const [formError, setFormError] = useState("");
-  const [successText, setSuccessText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Бэк принимает сегодняшний дедлайн (@FutureOrPresent), поэтому и календарь
+  // не должен давать выбрать прошлое.
   const now = new Date();
   const minimumDeadline = [
     now.getFullYear(),
     String(now.getMonth() + 1).padStart(2, "0"),
     String(now.getDate()).padStart(2, "0")
   ].join("-");
+  const [values, setValues] = useState<ProgramDraftFormValues>(
+    initialValues ?? emptyProgramDraft
+  );
+  const [fieldErrors, setFieldErrors] = useState<ProgramDraftFieldErrors>({});
+  const [formError, setFormError] = useState("");
+  const [successText, setSuccessText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function updateField<K extends keyof ProgramDraftFormValues>(
     field: K,
@@ -102,7 +114,11 @@ export function SuggestProgramForm({
 
     try {
       await onSubmit(toProgramDraft(values));
-      setValues(emptyProgramDraft);
+
+      if (resetAfterSubmit) {
+        setValues(emptyProgramDraft);
+      }
+
       setSuccessText(successMessage);
     } catch (submitError) {
       const serverFieldErrors = readServerFieldErrors(submitError);
@@ -234,9 +250,21 @@ export function SuggestProgramForm({
         {successText ? <p className="form-feedback__success">{successText}</p> : null}
       </div>
 
-      <button className="primary-button" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Sending..." : submitLabel}
-      </button>
+      <div className="action-strip">
+        <button className="primary-button" disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Saving..." : submitLabel}
+        </button>
+        {onCancel ? (
+          <button
+            className="secondary-button"
+            disabled={isSubmitting}
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel
+          </button>
+        ) : null}
+      </div>
     </form>
   );
 }

@@ -1,114 +1,142 @@
 import { useEffect, useState } from "react";
-import { getAdminAnalytics, type AdminAnalytics } from "../../entities/analytics/api";
+import { getAdminAnalytics } from "../../entities/analytics/api";
 import { toFriendlyApiError } from "../../shared/api/problem";
+import type { AdminAnalytics } from "../../shared/types/analytics";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { AppShell } from "../../widgets/app-shell/AppShell";
+import { EngagementChart } from "../../widgets/engagement-chart/EngagementChart";
 
-const metricLabels: Array<[keyof Pick<AdminAnalytics, "users" | "programs" | "submissions" | "favorites" | "views" | "clicks">, string]> = [
-  ["users", "Users"],
-  ["programs", "Programs"],
-  ["submissions", "Submissions"],
-  ["favorites", "Favorites"],
-  ["views", "Views"],
-  ["clicks", "Outbound clicks"]
+const TILES: Array<{ key: keyof AdminAnalytics; label: string }> = [
+  { key: "users", label: "People" },
+  { key: "programs", label: "Programs" },
+  { key: "submissions", label: "Submissions" },
+  { key: "favorites", label: "Saves" },
+  { key: "views", label: "Program views" },
+  { key: "clicks", label: "Link clicks" }
 ];
-
-function formatAnalyticsDate(value: string) {
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
 
 export function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setError("");
+    const abortController = new AbortController();
+    let isActive = true;
 
-    getAdminAnalytics(controller.signal)
-      .then(setAnalytics)
-      .catch((loadError) => {
-        if (!controller.signal.aborted) {
-          setError(toFriendlyApiError(loadError, "We couldn’t load analytics right now."));
+    async function load() {
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const next = await getAdminAnalytics(abortController.signal);
+
+        if (isActive) {
+          setAnalytics(next);
         }
-      });
+      } catch (loadError) {
+        if (abortController.signal.aborted || !isActive) {
+          return;
+        }
 
-    return () => controller.abort();
+        setAnalytics(null);
+        setError(toFriendlyApiError(loadError, "We couldn’t load analytics right now."));
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+    };
   }, [reloadToken]);
+
+  const topPrograms = analytics?.topPrograms ?? [];
+  // Ширина полосы — доля от лидера, а не от суммы: сравниваем между собой.
+  const topMax = Math.max(1, ...topPrograms.map((program) => program.totalEngagement));
 
   return (
     <AppShell
       title="Admin / analytics"
-      description="Platform totals and the programs receiving the most engagement."
+      description="How people are finding and using the catalog."
       navigation={<AdminTabs currentRoute="adminAnalytics" />}
     >
       {error ? (
         <div className="error-banner">
           <p>{error}</p>
-          <button className="secondary-button" onClick={() => setReloadToken((value) => value + 1)} type="button">
+          <button
+            className="secondary-button"
+            onClick={() => setReloadToken((current) => current + 1)}
+            type="button"
+          >
             Retry
           </button>
         </div>
-      ) : !analytics ? (
+      ) : isLoading || !analytics ? (
         <div className="placeholder-card">Loading analytics...</div>
       ) : (
         <>
-          <section className="profile-grid" aria-label="Analytics totals">
-            {metricLabels.map(([field, label]) => (
-              <div className="profile-card" key={field}>
-                <h2>{label}</h2>
-                <p>{analytics[field].toLocaleString()}</p>
-              </div>
+          <section aria-label="Key numbers" className="kpi-row">
+            {TILES.map((tile) => (
+              <article className="kpi-tile" key={tile.key}>
+                <p className="kpi-tile__label">{tile.label}</p>
+                <p className="kpi-tile__value">{(analytics[tile.key] as number).toLocaleString()}</p>
+              </article>
             ))}
           </section>
 
           <section className="page-section">
-            <div className="programs-page__header">
-              <div>
-                <h2>Top programs</h2>
-                <p>Views, clicks and saves combined.</p>
-              </div>
-            </div>
-            {analytics.topPrograms.length ? (
-              <div className="program-list">
-                {analytics.topPrograms.map((program) => (
-                  <article className="program-list__card" key={program.id}>
-                    <h3>{program.title}</h3>
-                    <p>
-                      {program.views} views · {program.clicks} clicks · {program.favorites} saves
-                    </p>
-                    <strong>{program.totalEngagement} total engagements</strong>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="placeholder-card">No engagement has been recorded yet.</div>
-            )}
+            <h2 className="analytics-section__title">Daily engagement</h2>
+            <EngagementChart data={analytics.dailyEngagement} />
           </section>
 
           <section className="page-section">
-            <div className="programs-page__header">
-              <div>
-                <h2>Recent activity</h2>
-                <p>Views and outbound clicks for the latest seven days.</p>
-              </div>
-            </div>
-            {analytics.dailyEngagement.length ? (
-              <div className="program-list">
-                {analytics.dailyEngagement.slice(-7).map((day) => (
-                  <article className="program-list__card" key={day.date}>
-                    <h3>{formatAnalyticsDate(day.date)}</h3>
-                    <p>{day.views} views · {day.clicks} clicks</p>
-                    <strong>{day.totalEngagement} total engagements</strong>
-                  </article>
-                ))}
+            <h2 className="analytics-section__title">Most engaging programs</h2>
+
+            {topPrograms.length === 0 ? (
+              <div className="placeholder-card">
+                No program has been opened yet, so there is nothing to rank.
               </div>
             ) : (
-              <div className="placeholder-card">No daily activity has been recorded yet.</div>
+              <div className="chart__table-wrapper">
+                <table className="chart__table top-programs">
+                  <thead>
+                    <tr>
+                      <th scope="col">Program</th>
+                      <th scope="col">Views</th>
+                      <th scope="col">Clicks</th>
+                      <th scope="col">Saves</th>
+                      <th scope="col">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topPrograms.map((program) => (
+                      <tr key={program.id}>
+                        <th scope="row">
+                          <span className="top-programs__title">{program.title}</span>
+                          <span
+                            aria-hidden="true"
+                            className="top-programs__bar"
+                            style={{
+                              width: `${Math.max((program.totalEngagement / topMax) * 100, 2)}%`
+                            }}
+                          />
+                        </th>
+                        <td>{program.views}</td>
+                        <td>{program.clicks}</td>
+                        <td>{program.favorites}</td>
+                        <td className="top-programs__total">{program.totalEngagement}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </>

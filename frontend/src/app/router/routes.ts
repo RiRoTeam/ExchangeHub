@@ -15,8 +15,8 @@ export type AppRouteKey =
   | "adminPrograms"
   | "adminReview"
   | "adminAddProgram"
-  | "adminAnalytics"
-  | "adminManageAdmins";
+  | "adminManageAdmins"
+  | "adminAnalytics";
 
 export type AppRouteDefinition = {
   key: AppRouteKey;
@@ -56,6 +56,7 @@ export const appRoutes: AppRouteDefinition[] = [
     key: "programDetail",
     path: "/programs/:id",
     title: "Program",
+    // Карточку открывают обе роли: админ приходит сюда из своего каталога.
     scope: "authenticated",
     navigationLabel: "program",
     hiddenInNav: true
@@ -96,18 +97,18 @@ export const appRoutes: AppRouteDefinition[] = [
     navigationLabel: "add program"
   },
   {
-    key: "adminAnalytics",
-    path: "/admin/analytics",
-    title: "Analytics",
-    scope: "admin",
-    navigationLabel: "analytics"
-  },
-  {
     key: "adminManageAdmins",
     path: "/admin/manage-admins",
     title: "Manage admins",
     scope: "admin",
     navigationLabel: "manage admins"
+  },
+  {
+    key: "adminAnalytics",
+    path: "/admin/analytics",
+    title: "Analytics",
+    scope: "admin",
+    navigationLabel: "analytics"
   },
   {
     key: "profile",

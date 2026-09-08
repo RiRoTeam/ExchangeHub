@@ -125,11 +125,16 @@ export function createProgram(draft: ProgramDraft) {
 }
 
 /** GET /api/admin/programs — полный каталог, включая неактивные записи. */
+/**
+ * GET /api/admin/programs — весь каталог, включая неактивные и черновики.
+ * Принимает те же фильтры, что и публичный список.
+ */
 export async function listAdminPrograms(
+  filters: ProgramFilters = {},
   pagination: ProgramPageRequest = {},
   signal?: AbortSignal
 ) {
-  const query = toSearchParams({}, pagination).toString();
+  const query = toSearchParams(filters, pagination).toString();
   const envelope = await authorizedRequestJson<SpringPageEnvelope<Program>>(
     `/admin/programs?${query}`,
     { signal }
@@ -138,6 +143,11 @@ export async function listAdminPrograms(
 }
 
 /** DELETE /api/admin/programs/{id}. */
+/** PUT /api/admin/programs/{id} — отредактировать программу (только ADMIN). */
+export function updateProgram(id: number, draft: ProgramDraft) {
+  return authorizedJsonBody<Program>("PUT", `/admin/programs/${id}`, draft);
+}
+
 export function deleteProgram(programId: number) {
   return authorizedJsonBody<void>("DELETE", `/admin/programs/${programId}`);
 }

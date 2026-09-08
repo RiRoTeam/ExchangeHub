@@ -180,7 +180,7 @@ describe("entities/program/api", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     try {
-      await expect(listAdminPrograms({ page: 1, size: 6 })).resolves.toMatchObject({
+      await expect(listAdminPrograms({}, { page: 1, size: 6 })).resolves.toMatchObject({
         programs: [program]
       });
       await deleteProgram(program.id);

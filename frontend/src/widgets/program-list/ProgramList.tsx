@@ -1,3 +1,4 @@
+import { recordProgramEvent } from "../../entities/program/api";
 import { AppLink } from "../../app/router/AppLink";
 import { programDetailPath } from "../../app/router/routes";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
@@ -11,8 +12,6 @@ type ProgramListProps = {
   emptyMessage?: string;
   /** В админском каталоге избранное не нужно — там другие задачи. */
   showFavoriteToggle?: boolean;
-  /** Черновики из админского списка недоступны через публичный detail endpoint. */
-  linkTitles?: boolean;
   renderActions?: (program: Program) => React.ReactNode;
 };
 
@@ -28,7 +27,6 @@ export function ProgramList({
   programs,
   emptyMessage = "Programs will appear here once the API is connected.",
   showFavoriteToggle = true,
-  linkTitles = true,
   renderActions
 }: ProgramListProps) {
   if (!programs.length) {
@@ -40,6 +38,9 @@ export function ProgramList({
       {programs.map((program) => {
         const isDeadlinePassed = getDeadlineState(program.deadline).kind === "passed";
         const externalUrl = safeExternalUrl(program.url);
+        // GET /api/programs/{id} ищет программу через findByIdAndStatus(id, ACTIVE),
+        // поэтому ссылка на черновик или снятую программу привела бы в 404.
+        const isLinkable = program.status === "ACTIVE";
 
         return (
           <article
@@ -48,7 +49,7 @@ export function ProgramList({
           >
             <div className="program-list__heading">
               <h2>
-                {linkTitles ? (
+                {isLinkable ? (
                   <AppLink className="program-list__title" to={programDetailPath(program.id)}>
                     {program.title}
                   </AppLink>
@@ -86,6 +87,13 @@ export function ProgramList({
               <a
                 className="secondary-button program-list__link"
                 href={externalUrl}
+                onClick={() => {
+                  if (program.status === "ACTIVE") {
+                    void recordProgramEvent(program.id, "CLICK").catch(() => {
+                      // Переход по ссылке важнее, чем запись события.
+                    });
+                  }
+                }}
                 rel="noreferrer"
                 target="_blank"
               >
