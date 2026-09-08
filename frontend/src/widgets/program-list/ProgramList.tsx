@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { recordProgramEvent } from "../../entities/program/api";
 import { AppLink } from "../../app/router/AppLink";
 import { programDetailPath } from "../../app/router/routes";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
 import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
-import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
+import { getDeadlineState } from "../../entities/program/lib";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
 
@@ -15,26 +17,21 @@ type ProgramListProps = {
   renderActions?: (program: Program) => React.ReactNode;
 };
 
-function formatProgramType(type: Program["type"]) {
-  return type
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 export function ProgramList({
   programs,
-  emptyMessage = "Programs will appear here once the API is connected.",
+  emptyMessage,
   showFavoriteToggle = true,
   renderActions
 }: ProgramListProps) {
+  const { t } = useTranslation();
+  const { formatDate } = useFormatters();
+
   if (!programs.length) {
-    return <div className="placeholder-card">{emptyMessage}</div>;
+    return <div className="placeholder-card">{emptyMessage ?? t("programs.emptyFiltered")}</div>;
   }
 
   return (
-    <section aria-label="Programs" className="program-list">
+    <section aria-label={t("programs.catalogHeading")} className="program-list">
       {programs.map((program) => {
         const isDeadlinePassed = getDeadlineState(program.deadline).kind === "passed";
         const externalUrl = safeExternalUrl(program.url);
@@ -70,14 +67,14 @@ export function ProgramList({
 
             <div className="program-list__meta">
               <p>
-                <strong>Country:</strong> {program.country}
+                <strong>{t("programs.country")}:</strong> {program.country}
               </p>
               <p>
-                <strong>Type:</strong> {formatProgramType(program.type)}
+                <strong>{t("programs.type")}:</strong> {t(`programType.${program.type}`)}
               </p>
               <p>
-                <strong>Deadline:</strong>{" "}
-                {formatProgramDate(program.deadline, "Open or not specified")}
+                <strong>{t("programs.deadline")}:</strong>{" "}
+                {formatDate(program.deadline, t("programs.deadlineOpen"))}
               </p>
             </div>
 
@@ -97,7 +94,7 @@ export function ProgramList({
                 rel="noreferrer"
                 target="_blank"
               >
-                Open source
+                {t("programs.openSource")}
               </a>
             ) : null}
             {renderActions ? <div className="action-strip">{renderActions(program)}</div> : null}

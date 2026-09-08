@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { useRouter } from "../../../app/router/RouterProvider";
 import { updateProfile } from "../../../entities/user/api";
+import { useApiErrorText } from "../../../shared/i18n/useApiErrorText";
+import type { Message } from "../../../shared/i18n/message";
 import {
   readServerFieldErrors,
-  toFriendlyProfileError,
   toUpdateRequest,
   validateProfile,
   type ProfileFieldErrors,
@@ -61,7 +63,16 @@ function Field({
   );
 }
 
+function useFieldError() {
+  const { t } = useTranslation();
+
+  return (error?: Message) => (error ? t(error.key as never, error.params) : undefined);
+}
+
 export function EditProfileForm() {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
+  const renderError = useFieldError();
   const { session, applyUpdatedUser, signOut } = useAuth();
   const { navigate } = useRouter();
   const currentName = session?.user.name ?? "";
@@ -116,7 +127,7 @@ export function EditProfileForm() {
       if (changedPassword) {
         window.sessionStorage.setItem(
           "exchangehub-auth-notice",
-          "Password updated. Sign in again with your new password."
+          t("profile.passwordChangedNotice")
         );
         void signOut();
         navigate("/login", { replace: true });
@@ -131,15 +142,17 @@ export function EditProfileForm() {
         newPassword: "",
         confirmPassword: ""
       });
-      setSuccessText("Profile updated.");
+      // Смена пароля уходит в ветку с выходом из сессии выше, сюда попадают
+      // только обновления имени.
+      setSuccessText(t("profile.updated"));
     } catch (submitError) {
       const serverFieldErrors = readServerFieldErrors(submitError);
 
       if (Object.keys(serverFieldErrors).length > 0) {
         setFieldErrors(serverFieldErrors);
-        setFormError("Some fields need attention before we can save this.");
+        setFormError(t("validation.fixFields"));
       } else {
-        setFormError(toFriendlyProfileError(submitError));
+        setFormError(toErrorText(submitError, t("errors.profileSave")));
       }
     } finally {
       setIsSubmitting(false);
@@ -148,14 +161,14 @@ export function EditProfileForm() {
 
   return (
     <form className="placeholder-form" noValidate onSubmit={handleSubmit}>
-      <h2>Edit profile</h2>
+      <h2>{t("profile.editHeading")}</h2>
 
       <Field
         autoComplete="name"
         disabled={isSubmitting}
-        error={fieldErrors.name}
+        error={renderError(fieldErrors.name)}
         id="name"
-        label="Name"
+        label={t("profile.name")}
         onChange={(value) => updateField("name", value)}
         value={values.name}
       />
@@ -163,10 +176,10 @@ export function EditProfileForm() {
       <Field
         autoComplete="current-password"
         disabled={isSubmitting}
-        error={fieldErrors.currentPassword}
-        hint="Only needed when you change your password."
+        error={renderError(fieldErrors.currentPassword)}
+        hint={t("profile.currentPasswordHint")}
         id="currentPassword"
-        label="Current password"
+        label={t("profile.currentPassword")}
         onChange={(value) => updateField("currentPassword", value)}
         type="password"
         value={values.currentPassword}
@@ -175,10 +188,10 @@ export function EditProfileForm() {
       <Field
         autoComplete="new-password"
         disabled={isSubmitting}
-        error={fieldErrors.newPassword}
-        hint="Leave empty to keep your current password."
+        error={renderError(fieldErrors.newPassword)}
+        hint={t("profile.newPasswordHint")}
         id="newPassword"
-        label="New password"
+        label={t("profile.newPassword")}
         onChange={(value) => updateField("newPassword", value)}
         type="password"
         value={values.newPassword}
@@ -187,9 +200,9 @@ export function EditProfileForm() {
       <Field
         autoComplete="new-password"
         disabled={isSubmitting}
-        error={fieldErrors.confirmPassword}
+        error={renderError(fieldErrors.confirmPassword)}
         id="confirmPassword"
-        label="Repeat new password"
+        label={t("profile.repeatPassword")}
         onChange={(value) => updateField("confirmPassword", value)}
         type="password"
         value={values.confirmPassword}
@@ -201,7 +214,7 @@ export function EditProfileForm() {
       </div>
 
       <button className="primary-button" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Saving..." : "Save changes"}
+        {isSubmitting ? t("common.saving") : t("profile.saveChanges")}
       </button>
     </form>
   );

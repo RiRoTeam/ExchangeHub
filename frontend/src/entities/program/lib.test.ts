@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   differenceInCalendarDays,
-  formatDeadlineBadge,
   getDeadlineState,
   isRecentlyAdded,
   parseApiDate
@@ -103,16 +102,20 @@ describe("getDeadlineState", () => {
   });
 });
 
-describe("formatDeadlineBadge", () => {
-  it("подписывает срочные состояния", () => {
-    expect(formatDeadlineBadge(getDeadlineState(daysFromNow(-3), NOW))).toBe("Deadline passed");
-    expect(formatDeadlineBadge(getDeadlineState(daysFromNow(0), NOW))).toBe("Deadline today");
-    expect(formatDeadlineBadge(getDeadlineState(daysFromNow(1), NOW))).toBe("1 day left");
-    expect(formatDeadlineBadge(getDeadlineState(daysFromNow(5), NOW))).toBe("5 days left");
+describe("состояния, у которых есть плашка", () => {
+  // Текст подписи собирает ProgramBadges через i18n: в русском у «дня»
+  // три формы, и в чистой функции их выбирать нечем.
+  const withBadge = ["passed", "today", "urgent", "soon"];
+
+  it("срочные состояния попадают в список плашек", () => {
+    expect(withBadge).toContain(getDeadlineState(daysFromNow(-3), NOW).kind);
+    expect(withBadge).toContain(getDeadlineState(daysFromNow(0), NOW).kind);
+    expect(withBadge).toContain(getDeadlineState(daysFromNow(1), NOW).kind);
+    expect(withBadge).toContain(getDeadlineState(daysFromNow(5), NOW).kind);
   });
 
-  it("для далёкого дедлайна и его отсутствия плашки нет", () => {
-    expect(formatDeadlineBadge(getDeadlineState(daysFromNow(60), NOW))).toBeNull();
-    expect(formatDeadlineBadge(getDeadlineState(null, NOW))).toBeNull();
+  it("далёкий дедлайн и его отсутствие плашки не получают", () => {
+    expect(withBadge).not.toContain(getDeadlineState(daysFromNow(60), NOW).kind);
+    expect(withBadge).not.toContain(getDeadlineState(null, NOW).kind);
   });
 });

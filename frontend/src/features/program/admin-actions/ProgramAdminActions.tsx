@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { deleteProgram } from "../../../entities/program/api";
-import { toFriendlyApiError } from "../../../shared/api/problem";
+import { useApiErrorText } from "../../../shared/i18n/useApiErrorText";
 import type { Program } from "../../../shared/types/program";
 
 type ProgramAdminActionsProps = {
@@ -10,6 +11,8 @@ type ProgramAdminActionsProps = {
 };
 
 export function ProgramAdminActions({ program, onEdit, onDeleted }: ProgramAdminActionsProps) {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +25,7 @@ export function ProgramAdminActions({ program, onEdit, onDeleted }: ProgramAdmin
       await deleteProgram(program.id);
       onDeleted(program);
     } catch (deleteError) {
-      setError(toFriendlyApiError(deleteError, "We couldn’t delete this program."));
+      setError(toErrorText(deleteError, t("admin.deleteError")));
       setIsConfirmingDelete(false);
     } finally {
       setIsDeleting(false);
@@ -36,7 +39,7 @@ export function ProgramAdminActions({ program, onEdit, onDeleted }: ProgramAdmin
         // необратимо, и на демо диалог браузера смотрелся бы чужеродно.
         <div className="action-strip">
           <span className="program-admin-actions__question">
-            Delete “{program.title}” permanently?
+            {t("admin.confirmDelete", { title: program.title })}
           </span>
           <button
             className="secondary-button secondary-button--danger"
@@ -44,7 +47,7 @@ export function ProgramAdminActions({ program, onEdit, onDeleted }: ProgramAdmin
             onClick={() => void handleDelete()}
             type="button"
           >
-            {isDeleting ? "Deleting..." : "Yes, delete"}
+            {isDeleting ? t("admin.deleting") : t("admin.confirmDeleteYes")}
           </button>
           <button
             className="secondary-button"
@@ -52,20 +55,20 @@ export function ProgramAdminActions({ program, onEdit, onDeleted }: ProgramAdmin
             onClick={() => setIsConfirmingDelete(false)}
             type="button"
           >
-            Keep it
+            {t("admin.confirmDeleteNo")}
           </button>
         </div>
       ) : (
         <div className="action-strip">
           <button className="secondary-button" onClick={() => onEdit(program)} type="button">
-            Edit
+            {t("admin.edit")}
           </button>
           <button
             className="secondary-button secondary-button--danger"
             onClick={() => setIsConfirmingDelete(true)}
             type="button"
           >
-            Delete
+            {t("admin.delete")}
           </button>
         </div>
       )}

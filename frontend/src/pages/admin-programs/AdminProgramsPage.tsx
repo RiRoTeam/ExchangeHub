@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAdminPrograms,
   PROGRAMS_PAGE_SIZE,
   updateProgram,
   type ProgramPage
 } from "../../entities/program/api";
-import { toFriendlyApiError } from "../../shared/api/problem";
+import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import { useDebouncedValue } from "../../shared/lib/useDebouncedValue";
 import type { Program, ProgramType } from "../../shared/types/program";
 import type { ProgramDraft } from "../../shared/types/submission";
@@ -29,6 +30,8 @@ const emptyPage: ProgramPage = {
 };
 
 export function AdminProgramsPage() {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
   const [result, setResult] = useState<ProgramPage>(emptyPage);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
@@ -85,7 +88,7 @@ export function AdminProgramsPage() {
         }
 
         setResult(emptyPage);
-        setError(toFriendlyApiError(loadError, "We couldn’t load the catalog right now."));
+        setError(toErrorText(loadError, t("admin.catalogLoadError")));
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -99,7 +102,7 @@ export function AdminProgramsPage() {
       isActive = false;
       abortController.abort();
     };
-  }, [activeFilters, page, reloadToken]);
+  }, [activeFilters, page, reloadToken, t, toErrorText]);
 
   const reload = useCallback(() => {
     setReloadToken((current) => current + 1);
@@ -119,27 +122,27 @@ export function AdminProgramsPage() {
       }
 
       await updateProgram(editing.id, draft);
-      setNotice(`“${draft.title}” updated.`);
+      setNotice(t("admin.updatedNotice", { title: draft.title }));
       setEditing(null);
       reload();
     },
-    [editing, reload]
+    [editing, reload, t]
   );
 
   const handleDeleted = useCallback(
     (program: Program) => {
-      setNotice(`“${program.title}” deleted.`);
+      setNotice(t("admin.deletedNotice", { title: program.title }));
       // Перечитываем, а не вырезаем из списка: страница должна дозаполниться
       // элементом со следующей.
       reload();
     },
-    [reload]
+    [reload, t]
   );
 
   return (
     <AppShell
-      title="Admin / all programs"
-      description="Published catalog. Edit or remove programs that are already live."
+      title={t("admin.catalogTitle")}
+      description={t("admin.catalogDescription")}
       navigation={<AdminTabs currentRoute="adminPrograms" />}
       aside={
         <FilterSidebar>
@@ -161,13 +164,13 @@ export function AdminProgramsPage() {
     >
       <section className="programs-page__header">
         <div>
-          <h2>Published programs</h2>
+          <h2>{t("admin.publishedHeading")}</h2>
           <p>
             {error
-              ? "The catalog is temporarily unavailable."
+              ? t("admin.catalogUnavailable")
               : isLoading
-              ? "Loading the catalog..."
-              : `${result.totalElements} ${result.totalElements === 1 ? "program" : "programs"}`}
+              ? t("admin.catalogLoading")
+              : t("programs.programsFound", { count: result.totalElements })}
           </p>
         </div>
       </section>
@@ -179,13 +182,13 @@ export function AdminProgramsPage() {
       {editing ? (
         <section className="page-section">
           <SuggestProgramForm
-            heading={`Editing “${editing.title}”`}
+            heading={t("admin.editingHeading", { title: editing.title })}
             initialValues={toFormValues(editing)}
             onCancel={() => setEditing(null)}
             onSubmit={handleSaveEdit}
             resetAfterSubmit={false}
-            submitLabel="Save changes"
-            successMessage="Program updated."
+            submitLabel={t("profile.saveChanges")}
+            successMessage={t("admin.programUpdated")}
           />
         </section>
       ) : null}
@@ -194,15 +197,15 @@ export function AdminProgramsPage() {
         <div className="error-banner">
           <p>{error}</p>
           <button className="secondary-button" onClick={reload} type="button">
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : isLoading ? (
-        <div className="placeholder-card">Loading the catalog...</div>
+        <div className="placeholder-card">{t("admin.catalogLoading")}</div>
       ) : (
         <>
           <ProgramList
-            emptyMessage="No programs match these filters."
+            emptyMessage={t("admin.catalogEmpty")}
             programs={result.programs}
             renderActions={(program) => (
               <ProgramAdminActions

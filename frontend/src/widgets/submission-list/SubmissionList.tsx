@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Submission, SubmissionStatus } from "../../shared/types/submission";
 
@@ -9,34 +11,27 @@ type SubmissionListProps = {
   renderActions?: (submission: Submission) => React.ReactNode;
 };
 
-const statusLabels: Record<SubmissionStatus, string> = {
-  PENDING: "On review",
-  APPROVED: "Approved",
-  REJECTED: "Rejected"
+const statusKeys: Record<SubmissionStatus, string> = {
+  PENDING: "submissions.statusPending",
+  APPROVED: "submissions.statusApproved",
+  REJECTED: "submissions.statusRejected"
 };
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Not specified";
-  }
-
-  const parsed = new Date(value);
-
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
-}
 
 export function SubmissionList({
   submissions,
-  emptyMessage = "No submissions yet.",
+  emptyMessage,
   showAuthor = false,
   renderActions
 }: SubmissionListProps) {
+  const { t } = useTranslation();
+  const { formatDate } = useFormatters();
+
   if (!submissions.length) {
-    return <div className="placeholder-card">{emptyMessage}</div>;
+    return <div className="placeholder-card">{emptyMessage ?? t("submissions.empty")}</div>;
   }
 
   return (
-    <section aria-label="Submissions" className="program-list">
+    <section aria-label={t("submissions.listLabel")} className="program-list">
       {submissions.map((submission) => {
         const externalUrl = safeExternalUrl(submission.url);
 
@@ -47,24 +42,26 @@ export function SubmissionList({
             <span
               className={`status-pill status-pill--${submission.status.toLowerCase()}`}
             >
-              {statusLabels[submission.status]}
+              {t(statusKeys[submission.status] as never)}
             </span>
           </div>
 
           <div className="program-list__meta">
             {showAuthor ? (
               <p>
-                <strong>From:</strong> {submission.userName}
+                <strong>{t("submissions.from")}:</strong> {submission.userName}
               </p>
             ) : null}
             <p>
-              <strong>Country:</strong> {submission.country}
+              <strong>{t("programs.country")}:</strong> {submission.country}
             </p>
             <p>
-              <strong>Deadline:</strong> {formatDate(submission.deadline)}
+              <strong>{t("programs.deadline")}:</strong>{" "}
+              {formatDate(submission.deadline, t("common.notSpecified"))}
             </p>
             <p>
-              <strong>Sent:</strong> {formatDate(submission.createdAt)}
+              <strong>{t("submissions.sent")}:</strong>{" "}
+              {formatDate(submission.createdAt, t("common.notSpecified"))}
             </p>
           </div>
 
@@ -72,7 +69,7 @@ export function SubmissionList({
 
           {submission.adminComment ? (
             <p className="submission-card__comment">
-              <strong>Moderator:</strong> {submission.adminComment}
+              <strong>{t("submissions.moderator")}:</strong> {submission.adminComment}
             </p>
           ) : null}
 
@@ -83,7 +80,7 @@ export function SubmissionList({
               rel="noreferrer"
               target="_blank"
             >
-              Open source
+              {t("programs.openSource")}
             </a>
           ) : null}
 

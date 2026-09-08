@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getProgramById, recordProgramEvent } from "../../entities/program/api";
 import { ProgramBadges } from "../../entities/program/ProgramBadges";
 import { ToggleFavoriteButton } from "../../features/favorites/toggle-favorite/ToggleFavoriteButton";
-import { formatProgramDate, getDeadlineState } from "../../entities/program/lib";
+import { getDeadlineState } from "../../entities/program/lib";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import { ApiError } from "../../shared/api/http";
-import { toFriendlyApiError } from "../../shared/api/problem";
+import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import { safeExternalUrl } from "../../shared/lib/safeUrl";
 import type { Program } from "../../shared/types/program";
 import { useRouter } from "../../app/router/RouterProvider";
@@ -25,10 +27,6 @@ type LoadState =
   | { kind: "not-found" }
   | { kind: "error"; message: string };
 
-function formatProgramType(type: Program["type"]) {
-  return type.charAt(0) + type.slice(1).toLowerCase();
-}
-
 function parseProgramId(rawId: string) {
   // Бэк ждёт Long: дробное, отрицательное и "abc" до сети пускать незачем.
   if (!/^\d+$/.test(rawId)) {
@@ -42,6 +40,9 @@ function parseProgramId(rawId: string) {
 
 export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
   const { navigate } = useRouter();
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
+  const { formatDate } = useFormatters();
   const { session } = useAuth();
   const { actionError: favoriteError } = useFavorites();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -86,7 +87,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
 
         setState({
           kind: "error",
-          message: toFriendlyApiError(error, "We couldn’t load this program right now.")
+          message: toErrorText(error, t("programs.detailLoadError"))
         });
       }
     }
@@ -104,11 +105,11 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
 
   return (
     <AppShell
-      title={program ? program.title : "Program"}
+      title={program ? program.title : t("nav.allPrograms")}
       description={
         program
-          ? `${formatProgramType(program.type)} · ${program.country}`
-          : "Program details."
+          ? `${t(`programType.${program.type}`)} · ${program.country}`
+          : t("programs.aboutProgram")
       }
       navigation={
         session?.user.role === "ADMIN" ? (
@@ -124,19 +125,16 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
           onClick={() => navigate(session?.user.role === "ADMIN" ? "/admin/programs" : "/programs")}
           type="button"
         >
-          ← Back to catalog
+          {t("programs.backToCatalog")}
         </button>
       </div>
 
-      {state.kind === "loading" ? <div className="placeholder-card">Loading program...</div> : null}
+      {state.kind === "loading" ? <div className="placeholder-card">{t("common.loading")}</div> : null}
 
       {state.kind === "not-found" ? (
         <div className="placeholder-card">
-          <h2>Program not found</h2>
-          <p>
-            This program doesn’t exist, or it was removed from the catalog. Try browsing the
-            catalog instead.
-          </p>
+          <h2>{t("programs.notFoundTitle")}</h2>
+          <p>{t("programs.notFoundMessage")}</p>
         </div>
       ) : null}
 
@@ -148,7 +146,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
             onClick={() => setReloadToken((current) => current + 1)}
             type="button"
           >
-            Retry
+            {t("common.retry")}
           </button>
         </div>
       ) : null}
@@ -169,7 +167,7 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
                   А вот INACTIVE и DRAFT сообщают, что программа снята с публикации. */}
               {program.status === "ACTIVE" ? null : (
                 <span className={`status-pill status-pill--${program.status.toLowerCase()}`}>
-                  {program.status.charAt(0) + program.status.slice(1).toLowerCase()}
+                  {t(`programStatus.${program.status}`)}
                 </span>
               )}
             </div>
@@ -177,15 +175,15 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
 
           <dl className="program-detail__facts">
             <div className="profile-list__row">
-              <dt>Country</dt>
+              <dt>{t("programs.country")}</dt>
               <dd>{program.country}</dd>
             </div>
             <div className="profile-list__row">
-              <dt>Type</dt>
-              <dd>{formatProgramType(program.type)}</dd>
+              <dt>{t("programs.type")}</dt>
+              <dd>{t(`programType.${program.type}`)}</dd>
             </div>
             <div className="profile-list__row">
-              <dt>Deadline</dt>
+              <dt>{t("programs.deadline")}</dt>
               <dd
                 className={
                   getDeadlineState(program.deadline).kind === "passed"
@@ -193,17 +191,17 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
                     : undefined
                 }
               >
-                {formatProgramDate(program.deadline, "Open or not specified")}
+                {formatDate(program.deadline, t("programs.deadlineOpen"))}
               </dd>
             </div>
             <div className="profile-list__row">
-              <dt>Added</dt>
-              <dd>{formatProgramDate(program.createdAt)}</dd>
+              <dt>{t("programs.added")}</dt>
+              <dd>{formatDate(program.createdAt, t("common.notSpecified"))}</dd>
             </div>
           </dl>
 
           <section className="program-detail__description">
-            <h3>About the program</h3>
+            <h3>{t("programs.aboutProgram")}</h3>
             <p>{program.description}</p>
           </section>
 
@@ -221,10 +219,10 @@ export function ProgramDetailPage({ programId }: ProgramDetailPageProps) {
               rel="noreferrer"
               target="_blank"
             >
-              Open the official page
+              {t("programs.openOfficial")}
             </a>
           ) : (
-            <p className="form-field__hint">No official link was provided for this program.</p>
+            <p className="form-field__hint">{t("programs.noOfficialLink")}</p>
           )}
         </article>
       ) : null}

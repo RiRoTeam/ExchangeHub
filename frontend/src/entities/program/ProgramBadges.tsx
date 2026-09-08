@@ -1,5 +1,6 @@
+import { useTranslation } from "react-i18next";
 import type { Program } from "../../shared/types/program";
-import { formatDeadlineBadge, getDeadlineState, isRecentlyAdded } from "./lib";
+import { getDeadlineState, isRecentlyAdded } from "./lib";
 
 type ProgramBadgesProps = {
   program: Pick<Program, "createdAt" | "deadline">;
@@ -12,9 +13,20 @@ type ProgramBadgesProps = {
  * Ничего не рендерит, когда сказать нечего — карточка не шумит.
  */
 export function ProgramBadges({ program, now = new Date() }: ProgramBadgesProps) {
+  const { t } = useTranslation();
   const isNew = isRecentlyAdded(program.createdAt, now);
   const deadlineState = getDeadlineState(program.deadline, now);
-  const deadlineLabel = formatDeadlineBadge(deadlineState);
+
+  // Подпись собирается здесь, а не в lib: множественное число зависит от языка,
+  // а в русском у «дня» три формы.
+  const deadlineLabel =
+    deadlineState.kind === "passed"
+      ? t("programs.deadlinePassed")
+      : deadlineState.kind === "today"
+      ? t("programs.deadlineToday")
+      : deadlineState.kind === "urgent" || deadlineState.kind === "soon"
+      ? t("programs.daysLeft", { count: deadlineState.daysLeft })
+      : null;
 
   if (!isNew && !deadlineLabel) {
     return null;
@@ -22,7 +34,7 @@ export function ProgramBadges({ program, now = new Date() }: ProgramBadgesProps)
 
   return (
     <div className="program-badges">
-      {isNew ? <span className="status-pill status-pill--new">New</span> : null}
+      {isNew ? <span className="status-pill status-pill--new">{t("programs.badgeNew")}</span> : null}
       {deadlineLabel ? (
         <span className={`status-pill status-pill--deadline-${deadlineState.kind}`}>
           {deadlineLabel}

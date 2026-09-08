@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type RegisterFormProps = {
   email: string;
   name: string;
@@ -19,40 +21,42 @@ export function RegisterForm({
   onNameChange,
   onPasswordChange
 }: RegisterFormProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="auth-form-fields">
       <label className="auth-form-fields__label">
-        <span>Email</span>
+        <span>{t("auth.email")}</span>
         <input
           autoComplete="email"
           className="text-input"
           name="email"
           onChange={(event) => onEmailChange(event.target.value)}
-          placeholder="you@example.com"
+          placeholder={t("auth.emailPlaceholder")}
           type="email"
           value={email}
         />
       </label>
       <label className="auth-form-fields__label">
-        <span>Name</span>
+        <span>{t("auth.name")}</span>
         <input
           autoComplete="name"
           className="text-input"
           name="name"
           onChange={(event) => onNameChange(event.target.value)}
-          placeholder="Your name"
+          placeholder={t("auth.namePlaceholder")}
           type="text"
           value={name}
         />
       </label>
       <label className="auth-form-fields__label">
-        <span>Password</span>
+        <span>{t("auth.password")}</span>
         <input
           autoComplete="new-password"
           className="text-input"
           name="password"
           onChange={(event) => onPasswordChange(event.target.value)}
-          placeholder="Create a password"
+          placeholder={t("auth.newPasswordPlaceholder")}
           type="password"
           value={password}
         />
@@ -63,7 +67,7 @@ export function RegisterForm({
         disabled={isSubmitting}
         type="submit"
       >
-        {isSubmitting ? "Working..." : submitLabel}
+        {isSubmitting ? t("auth.working") : submitLabel}
       </button>
     </div>
   );

@@ -1,11 +1,6 @@
 import { ApiError } from "../../shared/api/http";
+import { readProblem } from "../../shared/api/problem";
 import type { AuthMode } from "../../shared/types/auth";
-
-type ProblemPayload = {
-  detail?: string;
-  title?: string;
-  errors?: Record<string, string>;
-};
 
 export class AdminAccessRequiredError extends Error {
   constructor() {
@@ -14,53 +9,46 @@ export class AdminAccessRequiredError extends Error {
   }
 }
 
-function readProblem(error: ApiError) {
-  return (error.payload ?? {}) as ProblemPayload;
-}
-
-function toFieldMessage(field: string, message: string) {
+/**
+ * Возвращает КЛЮЧ перевода, а не готовый текст: сообщение показывается в
+ * компоненте, который знает про текущий язык, а этот модуль — нет.
+ */
+function toFieldErrorKey(field: string, message: string) {
   if (message === "must not be blank" || message === "не должно быть пустым") {
     if (field === "email") {
-      return "Enter your email address.";
+      return "validation.enterEmail";
     }
 
     if (field === "name") {
-      return "Enter your name.";
+      return "validation.enterName";
     }
 
-    return "Enter your password.";
+    return "validation.enterPassword";
   }
 
   if (field === "email" && message.toLowerCase().includes("email")) {
-    return "Enter a valid email address.";
+    return "validation.invalidEmail";
   }
 
   if (field === "name" && message.includes("size must be between 2 and 100")) {
-    return "Name must be between 2 and 100 characters.";
+    return "validation.nameLength";
   }
 
   if (field === "password" && message.includes("size must be between 6 and 72")) {
-    return "Password must be between 6 and 72 characters.";
+    return "validation.passwordLength";
   }
 
   if (message === "size must be between 6 and 2147483647") {
-    return "Password must be at least 6 characters.";
+    return "validation.passwordMin";
   }
 
-  return message;
+  return "";
 }
 
-function defaultUnauthorizedMessage(mode: AuthMode) {
-  if (mode === "admin-login") {
-    return "We couldn’t sign you in as an admin with these details.";
-  }
-
-  return "We couldn’t sign you in with that email and password.";
-}
-
-export function toFriendlyAuthError(error: unknown, mode: AuthMode) {
+/** Ключ перевода для ошибки входа или регистрации. */
+export function toAuthErrorKey(error: unknown, mode: AuthMode) {
   if (error instanceof AdminAccessRequiredError) {
-    return "This account exists, but it doesn’t have admin access.";
+    return "errors.adminRequired";
   }
 
   if (error instanceof ApiError) {
@@ -70,39 +58,38 @@ export function toFriendlyAuthError(error: unknown, mode: AuthMode) {
       const firstError = Object.entries(problem.errors)[0];
 
       if (firstError) {
-        const [field, message] = firstError;
-        return toFieldMessage(field, message);
+        const key = toFieldErrorKey(firstError[0], firstError[1]);
+
+        if (key) {
+          return key;
+        }
       }
     }
 
     if (error.status === 400) {
-      return problem.detail || "Some fields need attention before we can continue.";
+      return "validation.fixFields";
     }
 
     if (error.status === 401) {
-      return problem.detail || defaultUnauthorizedMessage(mode);
+      return mode === "admin-login" ? "errors.badAdminCredentials" : "errors.badCredentials";
     }
 
     if (error.status === 409) {
-      return problem.detail || "An account with this email already exists.";
+      return "errors.emailTaken";
     }
 
     if (error.status === 429) {
-      return "Too many attempts right now. Please wait a minute and try again.";
+      return "errors.tooManyRequests";
     }
 
     if (error.status >= 500) {
-      return "The server is having trouble right now. Please try again in a moment.";
+      return "errors.server";
     }
   }
 
   if (error instanceof TypeError) {
-    return "We couldn’t reach ExchangeHub. Check your connection and try again.";
+    return "errors.network";
   }
 
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return "Something went wrong. Please try again.";
+  return "errors.generic";
 }

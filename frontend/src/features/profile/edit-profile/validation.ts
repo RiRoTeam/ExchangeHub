@@ -1,4 +1,5 @@
-import { readFieldErrors, toFriendlyApiError } from "../../../shared/api/problem";
+import { readFieldErrors } from "../../../shared/api/problem";
+import { message, type Message } from "../../../shared/i18n/message";
 import type { UpdateProfileRequest } from "../../../entities/user/api";
 
 export type ProfileFormValues = {
@@ -8,7 +9,7 @@ export type ProfileFormValues = {
   confirmPassword: string;
 };
 
-export type ProfileFieldErrors = Partial<Record<keyof ProfileFormValues, string>>;
+export type ProfileFieldErrors = Partial<Record<keyof ProfileFormValues, Message>>;
 
 export const NAME_MIN = 2;
 export const NAME_MAX = 100;
@@ -32,35 +33,35 @@ export function validateProfile(
   const name = values.name.trim();
 
   if (!name) {
-    errors.name = "Enter your name.";
+    errors.name = message("validation.enterName");
   } else if (name.length < NAME_MIN || name.length > NAME_MAX) {
-    errors.name = `Name must be between ${NAME_MIN} and ${NAME_MAX} characters.`;
+    errors.name = message("validation.nameLength", { min: NAME_MIN, max: NAME_MAX });
   }
 
   if (values.newPassword) {
     if (values.newPassword.length < PASSWORD_MIN || values.newPassword.length > PASSWORD_MAX) {
-      errors.newPassword = `Password must be between ${PASSWORD_MIN} and ${PASSWORD_MAX} characters.`;
+      errors.newPassword = message("validation.passwordLength", { min: PASSWORD_MIN, max: PASSWORD_MAX });
     }
 
     if (!values.currentPassword) {
-      errors.currentPassword = "Enter your current password to set a new one.";
+      errors.currentPassword = message("validation.currentPasswordRequired");
     }
 
     if (values.confirmPassword !== values.newPassword) {
-      errors.confirmPassword = "The two passwords don’t match.";
+      errors.confirmPassword = message("validation.passwordsDoNotMatch");
     }
 
     if (values.newPassword === values.currentPassword && values.currentPassword) {
-      errors.newPassword = "The new password must differ from the current one.";
+      errors.newPassword = message("validation.passwordMustDiffer");
     }
   }
 
   if (!values.newPassword && values.currentPassword) {
-    errors.newPassword = "Enter the new password you want to use.";
+    errors.newPassword = message("validation.newPasswordRequired");
   }
 
   if (!errors.name && !hasChanges(values, currentName)) {
-    errors.name = "Change your name or your password before saving.";
+    errors.name = message("validation.nothingToSave");
   }
 
   return errors;
@@ -86,22 +87,21 @@ export function toUpdateRequest(
   return request;
 }
 
-const serverFieldMessages: Record<string, string> = {
-  "must not be blank": "This field is required."
-};
-
-function toFieldMessage(message: string) {
-  if (serverFieldMessages[message]) {
-    return serverFieldMessages[message];
+function toFieldMessage(serverText: string): Message {
+  if (serverText === "must not be blank") {
+    return message("validation.required");
   }
 
-  const sizeMatch = /size must be between (\d+) and (\d+)/.exec(message);
+  const sizeMatch = /size must be between (\d+) and (\d+)/.exec(serverText);
 
   if (sizeMatch) {
-    return `Must be between ${sizeMatch[1]} and ${sizeMatch[2]} characters.`;
+    return message("validation.betweenLength", {
+      min: Number(sizeMatch[1]),
+      max: Number(sizeMatch[2])
+    });
   }
 
-  return message;
+  return message(serverText);
 }
 
 export function readServerFieldErrors(error: unknown): ProfileFieldErrors {
@@ -117,7 +117,4 @@ export function readServerFieldErrors(error: unknown): ProfileFieldErrors {
   return fieldErrors;
 }
 
-export function toFriendlyProfileError(error: unknown) {
-  // Неверный текущий пароль бэк отдаёт как 400 "Wrong current password".
-  return toFriendlyApiError(error, "We couldn’t save your profile. Please try again.");
-}
+

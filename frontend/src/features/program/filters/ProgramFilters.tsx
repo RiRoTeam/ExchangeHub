@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ProgramType } from "../../../shared/types/program";
 
 type ProgramFiltersProps = {
@@ -8,12 +9,7 @@ type ProgramFiltersProps = {
   onReset: () => void;
 };
 
-const typeOptions: Array<{ value: ProgramType; label: string }> = [
-  { value: "EXCHANGE", label: "Exchange" },
-  { value: "INTERNSHIP", label: "Internship" },
-  { value: "SCHOLARSHIP", label: "Scholarship" },
-  { value: "OTHER", label: "Other" }
-];
+const typeOptions: ProgramType[] = ["EXCHANGE", "INTERNSHIP", "SCHOLARSHIP", "OTHER"];
 
 export function ProgramFilters({
   country,
@@ -22,38 +18,40 @@ export function ProgramFilters({
   onTypeChange,
   onReset
 }: ProgramFiltersProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="filter-controls">
-      <h3>Filters</h3>
+      <h3>{t("programs.filters")}</h3>
       <label className="auth-form-fields__label">
-        <span>Country</span>
+        <span>{t("programs.country")}</span>
         <input
           className="text-input"
           onChange={(event) => onCountryChange(event.target.value)}
-          placeholder="Search by country"
+          placeholder={t("programs.countryPlaceholder")}
           type="text"
           value={country}
         />
       </label>
 
       <label className="auth-form-fields__label">
-        <span>Type</span>
+        <span>{t("programs.type")}</span>
         <select
           className="text-input"
           onChange={(event) => onTypeChange(event.target.value as ProgramType | "")}
           value={type}
         >
-          <option value="">All types</option>
+          <option value="">{t("programs.allTypes")}</option>
           {typeOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+            <option key={option} value={option}>
+              {t(`programType.${option}`)}
             </option>
           ))}
         </select>
       </label>
 
       <button className="secondary-button" onClick={onReset} type="button">
-        Clear filters
+        {t("programs.clearFilters")}
       </button>
     </section>
   );

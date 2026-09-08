@@ -9,7 +9,8 @@ import {
   type ReactNode
 } from "react";
 import { addFavorite, listFavorites, removeFavorite } from "../../entities/favorite/api";
-import { toFriendlyApiError } from "../../shared/api/problem";
+import { useTranslation } from "react-i18next";
+import { useApiErrorText } from "../../shared/i18n/useApiErrorText";
 import type { Program } from "../../shared/types/program";
 import { useAuth } from "./AuthProvider";
 
@@ -32,6 +33,8 @@ type FavoritesContextValue = {
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
   const { status: authStatus, session } = useAuth();
   const [status, setStatus] = useState<FavoritesStatus>("idle");
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -87,7 +90,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
 
         setPrograms([]);
         setStatus("error");
-        setLoadError(toFriendlyApiError(error, "We couldn’t load your favorites right now."));
+        setLoadError(toErrorText(error, t("favorites.loadError")));
       }
     }
 
@@ -97,7 +100,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isActive = false;
       abortController.abort();
     };
-  }, [authStatus, reloadToken, session?.user.id]);
+  }, [authStatus, reloadToken, session?.user.id, t]);
 
   const favoriteIds = useMemo(
     () => new Set(programs.map((program) => program.id)),
@@ -138,8 +141,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         if (sessionGenerationRef.current === generation) {
-          // Roll back only this program. Restoring a whole stale snapshot could
-          // erase another favorite request that completed in parallel.
+          // Откатываем только эту программу: восстановление устаревшего снимка
+          // стёрло бы параллельно завершившийся запрос по другой карточке.
           setPrograms((current) =>
             shouldRemove
               ? current.some((item) => item.id === program.id)
@@ -148,11 +151,9 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
               : current.filter((item) => item.id !== program.id)
           );
           setActionError(
-            toFriendlyApiError(
+            toErrorText(
               error,
-              shouldRemove
-                ? "We couldn’t remove this program from your favorites."
-                : "We couldn’t add this program to your favorites."
+              shouldRemove ? t("favorites.removeError") : t("favorites.addError")
             )
           );
         }
@@ -162,7 +163,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [favoriteIds]
+    [favoriteIds, t, toErrorText]
   );
 
   const reload = useCallback(() => {

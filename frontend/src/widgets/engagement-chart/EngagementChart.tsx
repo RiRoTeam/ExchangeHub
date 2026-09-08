@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { buildLinePath, buildScale, buildYTicks } from "../../shared/lib/chart";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import type { DailyEngagement } from "../../shared/types/analytics";
 
 type EngagementChartProps = {
@@ -15,26 +17,20 @@ const PLOT_HEIGHT = HEIGHT - PADDING.top - PADDING.bottom;
 
 /** Слоты 1 и 2 валидированной категориальной палитры. */
 const SERIES = [
-  { key: "views" as const, label: "Views", color: "#2a78d6" },
-  { key: "clicks" as const, label: "Clicks", color: "#eb6834" }
+  { key: "views" as const, labelKey: "admin.chartViews", color: "#2a78d6" },
+  { key: "clicks" as const, labelKey: "admin.chartClicks", color: "#eb6834" }
 ];
 
-function formatDay(date: string) {
-  const parsed = new Date(`${date}T00:00:00`);
-
-  return Number.isNaN(parsed.getTime())
-    ? date
-    : parsed.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-}
-
 export function EngagementChart({ data }: EngagementChartProps) {
+  const { t } = useTranslation();
+  const { formatDay } = useFormatters();
   const [asTable, setAsTable] = useState(false);
   const [hovered, setHovered] = useState<number | null>(null);
 
   if (data.length === 0) {
     return (
       <div className="placeholder-card">
-        No engagement recorded yet. Views and clicks appear here as people browse the catalog.
+        {t("admin.chartEmpty")}
       </div>
     );
   }
@@ -58,7 +54,7 @@ export function EngagementChart({ data }: EngagementChartProps) {
                 className="chart__swatch"
                 style={{ background: series.color }}
               />
-              {series.label}
+              {t(series.labelKey as never)}
             </span>
           ))}
         </div>
@@ -67,19 +63,19 @@ export function EngagementChart({ data }: EngagementChartProps) {
           onClick={() => setAsTable((current) => !current)}
           type="button"
         >
-          {asTable ? "Show chart" : "Show table"}
+          {asTable ? t("admin.showChart") : t("admin.showTable")}
         </button>
       </div>
 
       {asTable ? (
         <div className="chart__table-wrapper">
           <table className="chart__table">
-            <caption className="chart__caption">Daily views and clicks</caption>
+            <caption className="chart__caption">{t("admin.chartCaption")}</caption>
             <thead>
               <tr>
-                <th scope="col">Day</th>
-                <th scope="col">Views</th>
-                <th scope="col">Clicks</th>
+                <th scope="col">{t("admin.columnDay")}</th>
+                <th scope="col">{t("admin.columnViews")}</th>
+                <th scope="col">{t("admin.columnClicks")}</th>
               </tr>
             </thead>
             <tbody>
@@ -96,7 +92,7 @@ export function EngagementChart({ data }: EngagementChartProps) {
       ) : (
         <figure className="chart__figure">
           <svg
-            aria-label="Daily views and clicks. Use the table view for exact numbers."
+            aria-label={t("admin.chartAria")}
             className="chart__svg"
             role="img"
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -203,8 +199,12 @@ export function EngagementChart({ data }: EngagementChartProps) {
 
           <figcaption aria-live="polite" className="chart__tooltip">
             {hoveredDay
-              ? `${formatDay(hoveredDay.date)} — ${hoveredDay.views} views, ${hoveredDay.clicks} clicks`
-              : "Hover a day for exact numbers."}
+              ? t("admin.chartTooltip", {
+                  day: formatDay(hoveredDay.date),
+                  views: hoveredDay.views,
+                  clicks: hoveredDay.clicks
+                })
+              : t("admin.chartHint")}
           </figcaption>
         </figure>
       )}

@@ -98,34 +98,3 @@ export function getDeadlineState(deadline: string | null, now: Date = new Date()
   return { kind: "far", daysLeft };
 }
 
-function pluralizeDays(count: number) {
-  return count === 1 ? "1 day" : `${count} days`;
-}
-
-/** Короткая подпись для плашки. null — плашку показывать не надо. */
-export function formatDeadlineBadge(state: DeadlineState): string | null {
-  switch (state.kind) {
-    case "passed":
-      return "Deadline passed";
-    case "today":
-      return "Deadline today";
-    case "urgent":
-      return `${pluralizeDays(state.daysLeft)} left`;
-    case "soon":
-      return `${pluralizeDays(state.daysLeft)} left`;
-    default:
-      // "far" и "none" — плашка только зашумила бы карточку.
-      return null;
-  }
-}
-
-/** Человекочитаемая дата или заглушка, если её нет. */
-export function formatProgramDate(value: string | null, fallback = "Not specified") {
-  if (!value) {
-    return fallback;
-  }
-
-  const parsed = parseApiDate(value);
-
-  return parsed ? parsed.toLocaleDateString() : value;
-}

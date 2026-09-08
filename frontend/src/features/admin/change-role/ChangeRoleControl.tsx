@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { changeUserRole, type AdminUser } from "../../../entities/user/adminApi";
 import { ApiError } from "../../../shared/api/http";
-import { toFriendlyApiError } from "../../../shared/api/problem";
+import { useApiErrorText } from "../../../shared/i18n/useApiErrorText";
 import type { UserRole } from "../../../shared/types/user";
 
 type ChangeRoleControlProps = {
@@ -17,6 +18,8 @@ const nextRole: Record<UserRole, UserRole> = {
 };
 
 export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControlProps) {
+  const { t } = useTranslation();
+  const toErrorText = useApiErrorText();
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -24,7 +27,7 @@ export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControl
   if (isSelf) {
     // Бэк разрешает разжаловать себя, пока есть другой администратор, но при
     // этом отзывает наши же refresh-токены — панель закроется под руками.
-    return <span className="role-control__self">You can’t change your own role</span>;
+    return <span className="role-control__self">{t("admin.cannotChangeOwnRole")}</span>;
   }
 
   const target = nextRole[user.role];
@@ -40,9 +43,9 @@ export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControl
       onChanged(updated);
     } catch (changeError) {
       if (changeError instanceof ApiError && changeError.status === 409) {
-        setError("This is the last administrator — promote someone else first.");
+        setError(t("admin.lastAdmin"));
       } else {
-        setError(toFriendlyApiError(changeError, "We couldn’t change this role."));
+        setError(toErrorText(changeError, t("admin.roleChangeError")));
       }
 
       setIsConfirming(false);
@@ -57,8 +60,8 @@ export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControl
         <div className="role-control__confirm">
           <p className="role-control__question">
             {isPromotion
-              ? `Give ${user.name} full admin access? They will be able to publish, edit and delete any program.`
-              : `Remove admin access from ${user.name}? They will be signed out of every device.`}
+              ? t("admin.confirmPromote", { name: user.name })
+              : t("admin.confirmDemote", { name: user.name })}
           </p>
           <div className="action-strip">
             <button
@@ -67,7 +70,7 @@ export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControl
               onClick={() => void apply()}
               type="button"
             >
-              {isSubmitting ? "Applying..." : isPromotion ? "Make admin" : "Remove admin"}
+              {isSubmitting ? t("admin.applying") : isPromotion ? t("admin.makeAdmin") : t("admin.removeAdmin")}
             </button>
             <button
               className="secondary-button"
@@ -75,7 +78,7 @@ export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControl
               onClick={() => setIsConfirming(false)}
               type="button"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -88,7 +91,7 @@ export function ChangeRoleControl({ user, isSelf, onChanged }: ChangeRoleControl
           }}
           type="button"
         >
-          {isPromotion ? "Make admin" : "Remove admin"}
+          {isPromotion ? t("admin.makeAdmin") : t("admin.removeAdmin")}
         </button>
       )}
 

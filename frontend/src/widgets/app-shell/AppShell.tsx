@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "../../features/language/LanguageSwitcher";
 
 type AppShellProps = {
   title: string;
@@ -15,15 +17,20 @@ export function AppShell({
   aside,
   children
 }: AppShellProps) {
+  const { t } = useTranslation();
+
   return (
     <main className="page-shell">
       <header className="page-shell__header">
         <div className="page-shell__heading">
-          <p className="page-shell__eyebrow">ExchangeHub</p>
+          <p className="page-shell__eyebrow">{t("common.appName")}</p>
           <h1>{title}</h1>
           {description ? <p>{description}</p> : null}
         </div>
-        {navigation ? <div className="page-shell__navigation">{navigation}</div> : null}
+        <div className="page-shell__toolbar">
+          {navigation ? <div className="page-shell__navigation">{navigation}</div> : null}
+          <LanguageSwitcher />
+        </div>
       </header>
 
       <section className={`page-shell__content ${aside ? "page-shell__content--with-aside" : ""}`}>

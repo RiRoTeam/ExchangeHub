@@ -1,21 +1,15 @@
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { useRouter } from "../../app/router/RouterProvider";
 import { EditProfileForm } from "../../features/profile/edit-profile/EditProfileForm";
 import { AppShell } from "../../widgets/app-shell/AppShell";
+import { useFormatters } from "../../shared/i18n/useFormatters";
 import { AdminTabs } from "../../widgets/admin-tabs/AdminTabs";
 import { MobileBottomNav } from "../../widgets/mobile-bottom-nav/MobileBottomNav";
 
-function formatDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-
-  return date.toLocaleString();
-}
-
 export function ProfilePage() {
+  const { t } = useTranslation();
+  const { formatDateTime } = useFormatters();
   const { session, signOut } = useAuth();
   const { navigate } = useRouter();
 
@@ -32,8 +26,8 @@ export function ProfilePage() {
 
   return (
     <AppShell
-      title="Profile"
-      description="Your account details and current signed-in session."
+      title={t("profile.title")}
+      description={t("profile.description")}
       navigation={
         // Профиль открыт обеим ролям, поэтому и навигация своя для каждой:
         // с пользовательскими вкладками админа увело бы обратно.
@@ -46,41 +40,47 @@ export function ProfilePage() {
     >
       <section className="profile-grid">
         <div className="profile-card">
-          <h2>Account</h2>
+          <h2>{t("profile.account")}</h2>
 
           <dl className="profile-list">
             <div className="profile-list__row">
-              <dt>Name</dt>
+              <dt>{t("profile.name")}</dt>
               <dd>{session.user.name}</dd>
             </div>
             <div className="profile-list__row">
-              <dt>Email</dt>
+              <dt>{t("profile.email")}</dt>
               <dd>{session.user.email}</dd>
             </div>
             <div className="profile-list__row">
-              <dt>Role</dt>
-              <dd>{session.user.role}</dd>
+              <dt>{t("profile.role")}</dt>
+              <dd>{t(`roles.${session.user.role}`)}</dd>
             </div>
           </dl>
         </div>
 
         <div className="profile-card">
-          <h2>Session</h2>
+          <h2>{t("profile.session")}</h2>
 
           <dl className="profile-list">
             <div className="profile-list__row">
-              <dt>Signed in via</dt>
-              <dd>{session.mode}</dd>
+              <dt>{t("profile.signedInVia")}</dt>
+              <dd>
+                {session.mode === "admin-login"
+                  ? t("profile.modeAdminLogin")
+                  : session.mode === "user-register"
+                  ? t("profile.modeUserRegister")
+                  : t("profile.modeUserLogin")}
+              </dd>
             </div>
             <div className="profile-list__row">
-              <dt>Started at</dt>
-              <dd>{formatDate(session.createdAt)}</dd>
+              <dt>{t("profile.startedAt")}</dt>
+              <dd>{formatDateTime(session.createdAt, t("common.notSpecified"))}</dd>
             </div>
           </dl>
 
           <div className="profile-actions">
             <button className="secondary-button secondary-button--danger" onClick={handleLogout} type="button">
-              Log out
+              {t("profile.logout")}
             </button>
           </div>
         </div>

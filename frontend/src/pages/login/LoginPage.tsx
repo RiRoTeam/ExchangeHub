@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { useRouter } from "../../app/router/RouterProvider";
 import { getDefaultPathForRole } from "../../app/router/routes";
@@ -6,27 +7,21 @@ import { LoginForm } from "../../features/auth/login-form/LoginForm";
 import { RegisterForm } from "../../features/auth/register-form/RegisterForm";
 import type { AuthMode } from "../../shared/types/auth";
 
-type AuthCopy = {
-  title: string;
-  subtitle: string;
-  submitLabel: string;
-};
-
-const authCopy: Record<AuthMode, AuthCopy> = {
+const authCopyKeys: Record<AuthMode, { title: string; subtitle: string; submit: string }> = {
   "user-register": {
-    title: "Create your account",
-    subtitle: "Start saving programs, browsing opportunities, and suggesting new ones.",
-    submitLabel: "Create account"
+    title: "auth.registerTitle",
+    subtitle: "auth.registerSubtitle",
+    submit: "auth.registerSubmit"
   },
   "user-login": {
-    title: "Welcome back",
-    subtitle: "Sign in to continue exploring programs and managing your saved picks.",
-    submitLabel: "Log in"
+    title: "auth.loginTitle",
+    subtitle: "auth.loginSubtitle",
+    submit: "auth.loginSubmit"
   },
   "admin-login": {
-    title: "Admin access",
-    subtitle: "Use your approved admin account to review submissions and publish programs.",
-    submitLabel: "Continue as admin"
+    title: "auth.adminTitle",
+    subtitle: "auth.adminSubtitle",
+    submit: "auth.adminSubmit"
   }
 };
 
@@ -34,39 +29,37 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+/** Возвращает ключ перевода или пустую строку, если всё в порядке. */
 function validateAuthForm(mode: AuthMode, email: string, name: string, password: string) {
   if (!email.trim()) {
-    return "Enter your email address.";
+    return "validation.enterEmail";
   }
 
   if (!isValidEmail(email)) {
-    return "Enter a valid email address.";
+    return "validation.invalidEmail";
   }
 
   if (mode === "user-register" && !name.trim()) {
-    return "Enter your name.";
+    return "validation.enterName";
   }
 
   if (mode === "user-register" && (name.trim().length < 2 || name.trim().length > 100)) {
-    return "Name must be between 2 and 100 characters.";
+    return "validation.nameLength";
   }
 
   if (!password.trim()) {
-    return "Enter your password.";
+    return "validation.enterPassword";
   }
 
-  if (password.length < 6) {
-    return "Password must be at least 6 characters.";
-  }
-
-  if (password.length > 72) {
-    return "Password must be between 6 and 72 characters.";
+  if (password.length < 6 || password.length > 72) {
+    return "validation.passwordLength";
   }
 
   return "";
 }
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { signIn } = useAuth();
   const { navigate } = useRouter();
   const [mode, setMode] = useState<AuthMode>("user-login");
@@ -81,13 +74,13 @@ export function LoginPage() {
     return value;
   });
 
-  const currentCopy = authCopy[mode];
+  const copyKeys = authCopyKeys[mode];
 
   async function handleSubmit() {
     const validationError = validateAuthForm(mode, email, name, password);
 
     if (validationError) {
-      setError(validationError);
+      setError(t(validationError as never, { min: 2, max: 100 }));
       return;
     }
 
@@ -106,10 +99,11 @@ export function LoginPage() {
         replace: true
       });
     } catch (submitError) {
+      // AuthProvider кладёт в message ключ перевода.
       setError(
         submitError instanceof Error
-          ? submitError.message
-          : "Something went wrong. Please try again."
+          ? t(submitError.message as never, { min: 6, max: 72 })
+          : t("errors.generic")
       );
     } finally {
       setIsSubmitting(false);
@@ -125,26 +119,26 @@ export function LoginPage() {
     <main className="auth-page">
       <section className="auth-layout">
         <div className="auth-hero">
-          <p className="auth-hero__eyebrow">Get started</p>
+          <p className="auth-hero__eyebrow">{t("auth.eyebrow")}</p>
           <h1 className="auth-hero__title">
-            get started with <span>ExchangeHub</span>
+            {/* Trans сохраняет вёрстку внутри перевода: <1> — это span. */}
+            <Trans i18nKey="auth.heroTitle">
+              get started with <span>ExchangeHub</span>
+            </Trans>
           </h1>
-          <p className="auth-hero__description">
-            A calm, reliable place to browse exchange programs, save the ones you care
-            about, and contribute new opportunities for review.
-          </p>
+          <p className="auth-hero__description">{t("auth.heroDescription")}</p>
         </div>
 
         <section className="auth-card" aria-labelledby="auth-title">
           <div className="auth-card__header">
-            <div className="auth-tabs" role="tablist" aria-label="Authentication modes">
+            <div className="auth-tabs" role="tablist" aria-label={t("auth.modesLabel")}>
               <button
                 className={`auth-tabs__button ${mode === "user-register" ? "auth-tabs__button--active" : ""}`}
                 onClick={() => switchMode("user-register")}
                 role="tab"
                 type="button"
               >
-                register
+                {t("auth.tabRegister")}
               </button>
               <button
                 className={`auth-tabs__button ${mode === "user-login" ? "auth-tabs__button--active" : ""}`}
@@ -152,7 +146,7 @@ export function LoginPage() {
                 role="tab"
                 type="button"
               >
-                log in
+                {t("auth.tabLogin")}
               </button>
             </div>
 
@@ -161,14 +155,14 @@ export function LoginPage() {
               onClick={() => switchMode("admin-login")}
               type="button"
             >
-              admin access
+              {t("auth.adminAccess")}
             </button>
           </div>
 
           <div className="auth-card__body">
             <div className="auth-card__copy">
-              <h2 id="auth-title">{currentCopy.title}</h2>
-              <p>{currentCopy.subtitle}</p>
+              <h2 id="auth-title">{t(copyKeys.title as never)}</h2>
+              <p>{t(copyKeys.subtitle as never)}</p>
             </div>
 
             <form
@@ -187,7 +181,7 @@ export function LoginPage() {
                   onNameChange={setName}
                   onPasswordChange={setPassword}
                   password={password}
-                  submitLabel={currentCopy.submitLabel}
+                  submitLabel={t(copyKeys.submit as never)}
                 />
               ) : (
                 <LoginForm
@@ -196,7 +190,7 @@ export function LoginPage() {
                   onEmailChange={setEmail}
                   onPasswordChange={setPassword}
                   password={password}
-                  submitLabel={currentCopy.submitLabel}
+                  submitLabel={t(copyKeys.submit as never)}
                 />
               )}
             </form>
