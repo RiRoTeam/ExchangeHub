@@ -117,14 +117,6 @@ export function LoginPage() {
                 {t("auth.tabLogin")}
               </button>
             </div>
-
-            <button
-              className={`auth-admin-toggle ${mode === "admin-login" ? "auth-admin-toggle--active" : ""}`}
-              onClick={() => switchMode("admin-login")}
-              type="button"
-            >
-              {t("auth.adminAccess")}
-            </button>
           </div>
 
           <div className="auth-card__body">

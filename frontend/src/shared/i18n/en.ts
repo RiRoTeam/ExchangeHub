@@ -50,7 +50,6 @@ export const en = {
       "A calm, reliable place to browse exchange programs, save the ones you care about, and contribute new opportunities for review.",
     tabRegister: "register",
     tabLogin: "log in",
-    adminAccess: "admin access",
     registerTitle: "Create your account",
     registerSubtitle:
       "Start saving programs, browsing opportunities, and suggesting new ones.",

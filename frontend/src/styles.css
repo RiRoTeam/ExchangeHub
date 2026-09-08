@@ -67,7 +67,6 @@ a {
 .primary-button,
 .secondary-button,
 .auth-tabs__button,
-.auth-admin-toggle,
 .nav-tabs__button,
 .mobile-nav__button {
   min-height: 52px;
@@ -82,7 +81,6 @@ a {
 .primary-button:hover,
 .secondary-button:hover,
 .auth-tabs__button:hover,
-.auth-admin-toggle:hover,
 .nav-tabs__button:hover,
 .mobile-nav__button:hover {
   transform: translateY(-1px);
@@ -226,18 +224,6 @@ a {
   background: var(--color-accent);
   color: #ffffff;
   border-color: var(--color-accent);
-}
-
-.auth-admin-toggle {
-  padding: 0 18px;
-  background: transparent;
-  border: 1px dashed var(--color-brand);
-  color: var(--color-brand-strong);
-}
-
-.auth-admin-toggle--active {
-  background: rgba(122, 162, 127, 0.14);
-  border-style: solid;
 }
 
 .auth-card__body {
@@ -569,7 +555,6 @@ a {
   }
 
   .auth-tabs__button,
-  .auth-admin-toggle,
   .primary-button,
   .secondary-button,
   .nav-tabs__button,
