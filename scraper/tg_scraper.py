@@ -109,10 +109,18 @@ def fetch_posts(channel: str, pages: int = 1) -> list[dict]:
             date = time_tag["datetime"][:10] if time_tag else ""
 
             # Ссылки вытаскиваем сами из разметки, а не доверяем модели.
-            raw_links = [
+            # Часть каналов прячет ссылку на программу в inline-кнопку
+            # ("Подробнее") под постом, а не в текст.
+            button_links = [
+                clean_link(a["href"])
+                for a in msg.select("a.tgme_widget_message_inline_button[href]")
+                if a["href"].startswith("http") and "t.me" not in a["href"]
+            ]
+            text_links = [
                 clean_link(a["href"]) for a in body.select("a[href]")
                 if a["href"].startswith("http") and "t.me" not in a["href"]
             ]
+            raw_links = button_links + text_links
             # Убираем дубли, сохраняя порядок; мессенджеры — в хвост.
             raw_links = list(dict.fromkeys(raw_links))
             links = ([l for l in raw_links if not WEAK_LINKS.search(l)]
@@ -281,15 +289,47 @@ def save_seen(seen: dict) -> None:
     SEEN_FILE.write_text(json.dumps(seen, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def api_login(base_url: str, email: str, password: str) -> str:
-    resp = requests.post(
-        f"{base_url}/api/auth/login",
-        json={"email": email, "password": password},
-        timeout=30,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"вход не удался ({resp.status_code}): {resp.text[:300]}")
-    return resp.json()["accessToken"]
+class Session:
+    """Держит токен и сам переполучает его, когда сервер отвечает 401.
+
+    Access-токен живёт минуты, а полный обход каналов — больше часа,
+    поэтому одного логина на прогон не хватает.
+    """
+
+    def __init__(self, base_url: str, email: str, password: str):
+        self.base_url = base_url.rstrip("/")
+        self.email = email
+        self.password = password
+        self.token = ""
+        self.login()
+
+    def login(self) -> None:
+        resp = requests.post(
+            f"{self.base_url}/api/auth/login",
+            json={"email": self.email, "password": self.password},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"вход не удался ({resp.status_code}): {resp.text[:300]}")
+        self.token = resp.json()["accessToken"]
+
+    def post(self, path: str, payload: dict) -> requests.Response:
+        resp = requests.post(
+            f"{self.base_url}{path}",
+            json=payload,
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=30,
+        )
+        if resp.status_code == 401:
+            print("    токен протух, вхожу заново…", file=sys.stderr)
+            self.login()
+            resp = requests.post(
+                f"{self.base_url}{path}",
+                json=payload,
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=30,
+            )
+        return resp
 
 
 def to_submission(row: dict) -> tuple[dict | None, str]:
@@ -331,13 +371,8 @@ def to_submission(row: dict) -> tuple[dict | None, str]:
     }, ""
 
 
-def submit(base_url: str, token: str, payload: dict) -> tuple[bool, str]:
-    resp = requests.post(
-        f"{base_url}/api/submissions",
-        json=payload,
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=30,
-    )
+def submit(session: "Session", payload: dict) -> tuple[bool, str]:
+    resp = session.post("/api/submissions", payload)
     if resp.status_code in (200, 201):
         return True, ""
     return False, f"{resp.status_code}: {resp.text[:300]}"
@@ -380,7 +415,7 @@ def collect_candidates(channel: str, pages: int) -> list[dict]:
     return candidates
 
 
-def process_channel(channel: str, args, client, token, seen: dict) -> dict:
+def process_channel(channel: str, args, client, session, seen: dict) -> dict:
     """Разбирает один канал. Возвращает статистику и разобранные программы."""
     stats = {"parsed": [], "skipped_ru": 0, "sent": 0}
 
@@ -432,7 +467,7 @@ def process_channel(channel: str, args, client, token, seen: dict) -> dict:
             time.sleep(1)
             continue
 
-        ok, err = submit(args.api, token, payload)
+        ok, err = submit(session, payload)
         if ok:
             stats["sent"] += 1
             done_ids.add(post["id"])
@@ -492,7 +527,7 @@ def main() -> int:
         print("GEMINI_API_KEY не найден ни в окружении, ни в .env", file=sys.stderr)
         return 1
 
-    token = None
+    session = None
     if args.submit:
         email = os.environ.get("SCRAPER_EMAIL")
         password = os.environ.get("SCRAPER_PASSWORD")
@@ -500,7 +535,7 @@ def main() -> int:
             print("Для --submit нужны SCRAPER_EMAIL и SCRAPER_PASSWORD в .env", file=sys.stderr)
             return 1
         try:
-            token = api_login(args.api, email, password)
+            session = Session(args.api, email, password)
         except Exception as e:  # noqa: BLE001
             print(f"Не удалось войти на {args.api}: {e}", file=sys.stderr)
             return 1
@@ -514,7 +549,7 @@ def main() -> int:
 
     for channel in channels:
         try:
-            stats = process_channel(channel, args, client, token, seen)
+            stats = process_channel(channel, args, client, session, seen)
         except QuotaExceeded:
             print(
                 "\n  Дневная квота Gemini исчерпана — останавливаюсь.\n"

@@ -1,3 +1,11 @@
-# Каналы, которые скрапер обходит. По одному на строку, # — комментарий.
+# Каналы, за которыми следит скрапер. По одному на строку, # выключает строку.
+edu_traveler
+NUKUDA7
+confsci
+oopportunity_ladder
+worldabroad
+noborders_abroad
+noborders_forwomen
+studyqa
 globalmindsett
 beyondsd
