@@ -16,3 +16,9 @@ backups/
 Claude outputs/
 docs/
 frontend/vite.config.ts.timestamp-*
+
+# прототип скрапера
+scraper/.venv/
+scraper/out.json
+scraper/seen.json
+scraper/__pycache__/
